@@ -4,6 +4,10 @@
  * Turns what [survey.ts](survey.ts) found into the two tables on the home page. The build
  * puts them where `index.html` says `__DRIFT__`, so the page stays plain HTML with no script.
  *
+ * Each repository's heading in the first table links to it on GitHub, and under its name to its
+ * site, where it has one, and to the version npm gives people, where it's a package. A site whose
+ * config names no domain says so, in red.
+ *
  * The first table has a row per check and a column per repository, the versions first and
  * then the setup. A cell shows what the repository has, like the version it pins, and what has
  * drifted. The second lists every
@@ -11,7 +15,7 @@
  * repositories is easy to spot. A required script that's missing says so, and an optional one
  * that's absent is a dash.
  */
-import { CHECKS, SHARED, type Result } from "./survey.ts";
+import { CHECKS, OWNER, SHARED, type Result } from "./survey.ts";
 
 const escape = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -25,11 +29,33 @@ const code = (command: string): string =>
     .map((word) => (word.includes("-") && word.length <= 20 ? `<span>${word}</span>` : word))
     .join(" ")}</code>`;
 
+function site(result: Result): string {
+  if (!result.worker) return "";
+  const { domain } = result.worker;
+  if (!domain) return `<small class="bad">no domain in its config</small>`;
+  return `<small><a href="https://${domain}">${domain}</a></small>`;
+}
+
+function npm(result: Result): string {
+  const { release } = result;
+  if (!release) return "";
+  if (release instanceof Error) return `<small class="bad">npm: ${escape(release.message)}</small>`;
+  if (!release.version) return `<small>npm: not yet</small>`;
+  const url = `https://www.npmjs.com/package/${release.name}`;
+  return `<small><a href="${url}">npm ${release.version}</a></small>`;
+}
+
+// The first table's headings say where each repository lives, the second's only its name.
+const repo = (result: Result, links: boolean): string =>
+  links
+    ? `<a href="https://github.com/${OWNER}/${result.repo}">${result.repo}</a>${site(result)}${npm(result)}`
+    : result.repo;
+
 // Both tables share one set of columns, the ask and then a column per repository, so a
 // repository's column lines up from one table to the next.
-const head = (results: Result[], first: string): string =>
+const head = (results: Result[], first: string, links = false): string =>
   `<colgroup><col class="ask" />${results.map(() => "<col />").join("")}</colgroup><thead><tr><th scope="col">${first}</th>${results
-    .map((r) => `<th scope="col">${r.repo}</th>`)
+    .map((r) => `<th scope="col">${repo(r, links)}</th>`)
     .join("")}</tr></thead>`;
 
 function checkCell(result: Result, index: number): string {
@@ -58,7 +84,7 @@ function checksTable(results: Result[]): string {
         check.name
       }<small>${escape(check.rule)}</small></th>${results.map((r) => checkCell(r, i)).join("")}</tr>`,
   );
-  return `<table>${head(results, "Check")}<tbody>${rows.join("")}</tbody></table>`;
+  return `<table>${head(results, "Check", true)}<tbody>${rows.join("")}</tbody></table>`;
 }
 
 // The Scripts check already decides which names are required, so a missing one is found
