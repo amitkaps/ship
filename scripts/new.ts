@@ -148,12 +148,8 @@ function workspace(kind: Kind): string {
 }
 
 function tsconfig(kind: Kind): string {
-  const options = (JSON.parse(read("tsconfig.json")) as { compilerOptions: object })
+  const compilerOptions = (JSON.parse(read("tsconfig.json")) as { compilerOptions: object })
     .compilerOptions;
-  // A package's types are written by Oxc, which needs each export's type stated, rather than
-  // by TypeScript, which would be a dependency.
-  const compilerOptions =
-    kind === "package" ? { ...options, declaration: true, isolatedDeclarations: true } : options;
   const include =
     kind === "site"
       ? ["src", "vite.config.ts", "cloudflare.config.ts"]
@@ -198,7 +194,9 @@ export default defineConfig({
     entry: ["src/index.ts"],
     format: ["esm"],
     platform: "node",
-    dts: true,
+    // Oxc writes the types, so there's no typescript dependency, and fails on an export
+    // whose type isn't written out.
+    dts: { generator: "oxc" },
     clean: true,
     fixedExtension: false,
     publint: { strict: true },
