@@ -22,6 +22,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **One script name ran two commands.** ship and base ran `prose .`, and markz and sitez ran `prose`. prose reads `build` only as its first argument, so `pnpm prose build` became `prose . build` in two of them. The script is `prose` alone, since it reads the current folder anyway, and the survey checks it.
 
+- **A sixth repository made the first table scroll.** Each word in a command was kept from breaking, so a flag's hyphen never split, and `cloudflare.config.ts` no longer fit its narrower column. Only hyphenated words are kept whole now. A new column is worth a look at the page at a laptop's width.
+
 ## Moving base back
 
 - **A framework needs steps around `vp check`.** SvelteKit generates `$app/tsconfig` and the Worker's types, so `svelte-kit sync` and `wrangler types` run first, and oxlint doesn't type-check `.svelte` files, so `svelte-check` runs after. The standard holds `check` to running `vp check`, not to being only that. `fix` stays exact.

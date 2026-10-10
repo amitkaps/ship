@@ -16,12 +16,13 @@ import { CHECKS, SHARED, type Result } from "./survey.ts";
 const escape = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
-// A command breaks only between words, never at the hyphen in a flag like `--watch`. A word too
-// long for its column, like a beta version, is left free to break anywhere.
+// A command breaks between words, never at the hyphen in a flag like `--watch`. Any other word,
+// like a path, and a hyphenated one too long for its column, like a beta version, is left free to
+// break anywhere, so it never pushes the table wider than the page.
 const code = (command: string): string =>
   `<code>${escape(command)
     .split(" ")
-    .map((word) => (word.length > 20 ? word : `<span>${word}</span>`))
+    .map((word) => (word.includes("-") && word.length <= 20 ? `<span>${word}</span>` : word))
     .join(" ")}</code>`;
 
 // Both tables share one set of columns, the ask and then a column per repository, so a
