@@ -34,6 +34,7 @@ const FILES = [
   ".github/workflows/ci.yml",
   ".github/workflows/release.yml",
   ".github/release.yml",
+  ".github/dependabot.yml",
 ];
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -308,6 +309,23 @@ function section(text: string, heading: string): string | undefined {
 }
 
 const agents = read(join(here, "AGENTS.md"));
+
+/** @prose
+ * # The actions
+ *
+ * Every workflow uses the actions at the versions this repository's do, read from its CI and
+ * release workflows. A repository can add steps of its own, like sitez installing its packed
+ * tarball, so the workflows aren't compared word for word, only the versions. They move here
+ * first, like every other version, so nothing else bumps them, and Dependabot isn't set up.
+ */
+const actionVersions = (text: string): [string, string][] =>
+  [...text.matchAll(/uses:\s*([^@\s]+)@(\S+)/g)].map((m) => [m[1] ?? "", m[2] ?? ""]);
+
+const ACTIONS = Object.fromEntries(
+  actionVersions(
+    read(join(here, ".github", "workflows", "ci.yml")) + released[".github/workflows/release.yml"],
+  ),
+);
 
 type Repo = {
   pkg: Pkg;
@@ -589,6 +607,22 @@ export const CHECKS: Check[] = [
       if (!rules) return undefined;
       if (rules instanceof Error) return unread(rules);
       return { drift: rulesDrift(rules) };
+    },
+  },
+  {
+    name: "Actions",
+    group: "Setup",
+    rule: "workflows use ship's action versions, and nothing else bumps them",
+    run: ({ files }) => {
+      const drift: string[] = [];
+      for (const file of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
+        for (const [action, version] of actionVersions(files[file] ?? "")) {
+          const want = ACTIONS[action];
+          if (want && version !== want) drift.push(`${action} is ${version}, not ${want}`);
+        }
+      }
+      if (files[".github/dependabot.yml"]) drift.push("has a dependabot.yml");
+      return { drift: [...new Set(drift)] };
     },
   },
   {

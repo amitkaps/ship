@@ -33,6 +33,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **A framework needs steps around `vp check`.** SvelteKit generates `$app/tsconfig` and the Worker's types, so `svelte-kit sync` and `wrangler types` run first, and oxlint doesn't type-check `.svelte` files, so `svelte-check` runs after. The standard holds `check` to running `vp check`, not to being only that. `fix` stays exact.
 - **Moving between toolchains needs a fresh lockfile.** A lockfile keeps the optional peers it already resolved, so base needed `node_modules` and `pnpm-lock.yaml` removed before installing.
 - **Dependabot can't bump Vite+ alone.** The override in `pnpm-workspace.yaml` has to move with it, and Dependabot doesn't edit that file, so it ignores `vite-plus`. Vite+ moves from here, in every repository at once.
+- **Dependabot's pull requests duplicated the survey.** Only base and markz had it, and every npm pull request it opened was closed, since versions move from here and the survey compares them with npm's latest. Its merged ones were three action bumps in base. The survey checks action versions now, and Dependabot is gone.
 - **wrangler.jsonc hides its comments from prose.** prose reads comments in `.toml` but not `.jsonc`, so a repository still on wrangler uses `wrangler.toml`.
 
 ## GitHub and agents
