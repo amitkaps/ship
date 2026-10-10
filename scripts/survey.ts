@@ -392,6 +392,7 @@ const PROSE_SITE =
 const HELD: Record<string, Record<string, string>> = {
   markz: { Cloudflare: PROSE_SITE },
   prose: { Cloudflare: PROSE_SITE },
+  sitez: { Cloudflare: PROSE_SITE },
   base: {
     typescript: "svelte-check accepts TypeScript 5 and 6 only. Move when its peer range takes 7.",
     Cloudflare:
