@@ -232,9 +232,11 @@ function ci(kind: Kind): string {
 }
 
 function agents(name: string, description: string): string {
+  // A description in the packages' style, like "markz — small, opinionated Markdown.", names it.
+  const intro = description.startsWith(name) ? description : `${name}: ${description}`;
   return `# AGENTS.md
 
-${name}: ${description}
+${intro}
 
 ${sections()}
 

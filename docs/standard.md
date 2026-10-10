@@ -2,7 +2,7 @@
 
 How every repository builds, checks and deploys. There's one way to do each thing, and this repository is the working example of it. `pnpm drift` checks the others against it and lists where each has drifted, and the home page at ship.amitkaps.com shows the same as tables.
 
-The repositories are base, markz, prose, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
+The repositories are base, markz, prose, pagez, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
 
 ## Toolchain: Vite+
 
@@ -119,7 +119,7 @@ Every `AGENTS.md` opens with the same two sections as [this repository's](../AGE
 
 ## Releases
 
-markz, prose and sitez are packages, published to npm. A package is any repository whose `package.json` isn't private, and every one releases the same way.
+markz, prose, pagez and sitez are packages, published to npm. A package is any repository whose `package.json` isn't private, and every one releases the same way.
 
 - **The release files** are [package/](../package/README.md)'s, copied into the package unchanged: the release workflow and `.github/release.yml`, which groups the notes. They name no package, so the copies stay identical and the survey checks them word for word.
 - **Packing:** `files` is `["dist"]`, `prepack` is `vp pack`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
