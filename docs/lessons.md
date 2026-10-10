@@ -8,6 +8,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **Some script names never run.** `pnpm deploy`, `pnpm audit`, `pnpm publish` and `pnpm ci` are pnpm's own commands, so a script by one of those names is skipped. That's why the deploy script is `ship` and the drift check is `drift`.
 - **`npx` refuses to run in a repository whose `devEngines` names pnpm.** Use `pnpm exec` for an installed tool, and `pnpm dlx` for one that isn't.
 - **An exception for one version needed an edit on every release.** ship and base turned pnpm's one-day wait off, and the others named each of our new versions in `minimumReleaseAgeExclude`. pnpm writes that list itself on install, in a form `vp check` rejects, which failed a pull request in pagez. The wait is pnpm's default everywhere now, with `@amitkaps/*` excluded, a pattern pnpm accepts, so a release changes nothing here.
+- **Turning the wait back on failed a lockfile that had skipped it.** base's lockfile held a `@cloudflare/workers-types` published that morning, resolved while its wait was 0. `pnpm install` passed locally, but `pnpm install --frozen-lockfile`, which CI runs, checks each locked version against the wait and failed. `pnpm update` on the package resolved it to the newest one past the wait. Run the frozen install locally before pushing a change to these settings.
 
 ## Vite+
 
