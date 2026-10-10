@@ -102,7 +102,7 @@ const LATEST = ["typescript", "wrangler", "publint", "@amitkaps/prose", "@amitka
 
 type Latest = Record<string, string | Error>;
 
-async function latest(): Promise<Latest> {
+export async function latest(): Promise<Latest> {
   const entries = await Promise.all(
     LATEST.map(async (name) => {
       try {
@@ -279,7 +279,8 @@ type Repo = {
   vitePlus?: string;
   worker?: Worker;
   latest: Latest;
-  rules: Rule[] | Error;
+  // Left out for a folder that isn't on GitHub yet.
+  rules?: Rule[] | Error;
   labels?: string[] | Error;
 };
 
@@ -529,6 +530,7 @@ export const CHECKS: Check[] = [
     group: "Setup",
     rule: "main takes squashed pull requests that pass ci, from .github/ruleset.json",
     run: ({ rules }) => {
+      if (!rules) return undefined;
       if (rules instanceof Error) return { drift: [`GitHub couldn't be read: ${rules.message}`] };
       return { drift: rulesDrift(rules) };
     },
@@ -611,6 +613,12 @@ export type Result = {
   worker?: Worker;
 };
 
+function repoOf(files: Files, found: Latest): Repo {
+  const pkg = JSON.parse(files["package.json"] ?? "{}") as Pkg;
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  return { pkg, files, deps, vitePlus: deps["vite-plus"], worker: worker(files), latest: found };
+}
+
 async function check(repo: string, local: boolean, found: Latest): Promise<Result> {
   const rules = branchRules(repo);
   let files: Files;
@@ -621,22 +629,13 @@ async function check(repo: string, local: boolean, found: Latest): Promise<Resul
     return { repo, error: `couldn't be read: ${String(error)}`, findings: [], scripts: {} };
   }
   if (!files["package.json"]) return { repo, error: "no package.json", findings: [], scripts: {} };
-  const pkg = JSON.parse(files["package.json"]) as Pkg;
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  const it: Repo = {
-    pkg,
-    files,
-    deps,
-    vitePlus: deps["vite-plus"],
-    worker: worker(files),
-    latest: found,
-    rules: await rules,
-    labels: pkg.private ? undefined : await repoLabels(repo),
-  };
+  const it = repoOf(files, found);
+  it.rules = await rules;
+  if (!it.pkg.private) it.labels = await repoLabels(repo);
   return {
     repo,
     findings: CHECKS.map((c) => hold(repo, c, c.run(it))),
-    scripts: pkg.scripts ?? {},
+    scripts: it.pkg.scripts ?? {},
     worker: it.worker,
   };
 }
@@ -644,4 +643,16 @@ async function check(repo: string, local: boolean, found: Latest): Promise<Resul
 export async function survey({ local = false } = {}): Promise<Result[]> {
   const found = await latest();
   return Promise.all(REPOS.map((repo) => check(repo, local, found)));
+}
+
+/** @prose
+ * # A folder
+ *
+ * Checks a folder that isn't on GitHub yet, like one `pnpm new` just wrote. Its branch rules and
+ * labels come with `pnpm protect`, so they aren't checked, and neither are holds, which belong to
+ * a named repository.
+ */
+export async function checkFolder(dir: string): Promise<Finding[]> {
+  const it = repoOf(fromDisk(dir), await latest());
+  return CHECKS.flatMap((c) => c.run(it) ?? []);
 }

@@ -9,12 +9,14 @@
     "preview": "vp preview",
     "check": "vp check",
     "fix": "vp check --fix",
-    "verify": "pnpm check && pnpm build",
+    "test": "vp test --run",
+    "verify": "pnpm check && pnpm test && pnpm build",
     "ship": "cf deploy --prebuilt",
     "prose": "prose",
     "drift": "node scripts/drift.ts",
     "protect": "node scripts/protect.ts",
-    "release": "node scripts/release.ts"
+    "release": "node scripts/release.ts",
+    "new": "node scripts/new.ts"
   },
   "devDependencies": {
     "@amitkaps/prose": "^0.4.0",

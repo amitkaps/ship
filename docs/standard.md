@@ -154,11 +154,13 @@ A pull request's title is its line in the notes, so a user-facing one is written
 
 ### Setting up a new package
 
-Copy in `package/`'s files, and run `pnpm protect <repo>` for the labels. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
+`pnpm new` copies in `package/`'s files, and `pnpm protect <repo>` makes the labels. A package that isn't on npm yet doesn't release on a merge, since npm trusts the workflow only once the package exists. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
 
 ```sh
 pnpm pack && cd /tmp && npm login && npm publish ~/code/<repo>/amitkaps-<repo>-<version>.tgz --access public
 ```
+
+The next merge that changes `package.json` finds that version on npm with no tag, so it skips staging and tags it, with a GitHub Release.
 
 ## CI
 
@@ -167,3 +169,27 @@ GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It inst
 ## Docs
 
 Explanations live in `@prose` comments, beside the code or setting they explain, and docs that span files live in `docs/`. Both are written in [markz](https://markz.amitkaps.com)'s Markdown, and `pnpm prose` reads them as one document. `package.json` has no comments, so its scripts are explained here. A hand-written `.html` page ships its comments, so it has no prose.
+
+## Repositories
+
+Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../scripts/survey.ts), so the home page and `pnpm drift` check it. A repository joins one of two ways, and both end the same: in `REPOS`, protected, and passing `pnpm drift`.
+
+### Bringing one in
+
+1. Add it to `REPOS`, in a pull request here. `pnpm drift` then lists everything it's missing.
+2. Fix what drift lists, in the repository's own pull requests. Where a tool can't meet the standard yet, add a hold rather than a workaround.
+3. Run `pnpm protect <repo>`, for the branch rules, the merge settings and a package's labels.
+4. Set up what drift can't reach. A site's Worker gets the build settings above, which `pnpm drift --cloudflare` checks. A package gets its trusted publisher on npm.
+
+### Starting one
+
+`pnpm new` starts a repository that already follows the standard, in the folder next to this one.
+
+```sh
+pnpm new <name> --package --description "What it is, in a sentence." --push
+pnpm new <name> --site --description "What it is, in a sentence." --push
+```
+
+It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and runs `pnpm protect`. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
+
+A new package's types come from Oxc, with `isolatedDeclarations` on, so it needs no `typescript` dependency, and each export states its type. `pnpm test` here generates a package and a site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.
