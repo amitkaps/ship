@@ -6,10 +6,12 @@
 # here is a change to [the standard](docs/standard.md).
 
 # @prose
-# The supply-chain cooldown, in minutes, holds back a version for a while after it's
-# published. It's 0 here so this repository can try new releases first. A project that others
-# rely on wants 1440 or more.
-minimumReleaseAge: 0
+# pnpm holds back a version for a day after it's published, so a bad release can be caught
+# before it's installed. That default is kept, and our own packages skip the wait, since each
+# reaches npm only after the owner approves it with 2FA. The scope, not a version, is named, so
+# a release needs no change here.
+minimumReleaseAgeExclude:
+  - "@amitkaps/*"
 
 # @prose
 # Dependencies allowed to run install scripts. Both are native binaries: esbuild for the

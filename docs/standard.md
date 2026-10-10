@@ -64,7 +64,7 @@ When a tool a repository depends on can't support the standard yet, the check is
 
 A hold is for what a tool can't do, never for a preference. The point of one standard is that a choice like Vite+ is made once and paid for once, not argued again in each repository. A hold whose check stops drifting fails `pnpm drift` until it's removed, so none outlives its reason.
 
-`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: `minimumReleaseAge`, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
+`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: pnpm's one-day wait on a new version, with `@amitkaps/*` excluded so our own releases install at once, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
 
 ## Scripts
 
