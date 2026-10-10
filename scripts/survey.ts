@@ -17,7 +17,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REPOS = ["base", "markz", "prose", "sitez", "ship"];
+export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
 
 export const OWNER = "amitkaps";
 const SELF = "ship";

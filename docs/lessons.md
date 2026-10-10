@@ -50,6 +50,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`. That's now how every package writes its types.
 - **`vp check` doesn't report what `isolatedDeclarations` needs.** Turned on in markz and sitez, the check passed, and `vp pack` failed on an export with no written type (TS9010). `verify` runs both, so it's caught either way.
+- **pagez was the first repository `pnpm new` started.** CI passed on the first push, and the release workflow stopped at "isn't on npm yet", as it should. The one fix was cosmetic: a description in the packages' style, "pagez — one Markdown page, one HTML file.", came out as "pagez: pagez — …" in `AGENTS.md`. Running it without `--push` first left room to read the files before anything reached GitHub.
 - **A package's first push would have run the release.** The push changes `package.json`, and the package isn't on npm yet, so staging would fail. The workflow now stops for a package npm doesn't have, since its first version is published by hand.
 
 ## Cloudflare
