@@ -102,7 +102,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
       },
       publishConfig: { access: "public" },
       scripts: {
-        prepack: "vp pack",
+        prepack: "pnpm run build",
         dev: "vp pack --watch",
         build: "vp pack",
         ...scripts("check", "fix"),
