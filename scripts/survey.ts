@@ -150,7 +150,8 @@ const STRICT = [
  *
  * Every repository uses the same names for the same jobs, so `pnpm verify` means one thing
  * everywhere. Most are required. `test` is there when a repository has tests, and `ship` when it
- * has a site. On Vite+, `fix` is `vp check --fix` everywhere, and `check` runs `vp check`. A
+ * has a site. `preview` serves what `build` wrote, with `vp preview`, so it's a site's, and a
+ * package doesn't have one. On Vite+, `fix` is `vp check --fix` everywhere, and `check` runs `vp check`. A
  * framework may add its own steps around it, like SvelteKit's `svelte-kit sync` before and
  * `svelte-check` after, but never a second formatter or linter. A separate `lint` or `fmt`
  * script would only repeat half of `check`. `prose` is `prose` alone, which reads the current
@@ -158,9 +159,21 @@ const STRICT = [
  * `build` is `vp pack`, and a site's is `vp build`.
  *
  * Anything else, like a package's `size` or `fuzz`, is the repository's own. Names that are
- * pnpm's own commands are ruled out, since `pnpm <name>` skips a script by that name.
+ * pnpm's own commands are ruled out, since `pnpm <name>` skips a script by that name. A
+ * lifecycle script that pnpm runs itself, like base's `prepare`, only generates what a tool
+ * needs. A package's `prepack` is `pnpm run build`, so the build command is written once.
  */
-export const SHARED = ["dev", "build", "check", "fix", "test", "verify", "ship", "prose"];
+export const SHARED = [
+  "dev",
+  "build",
+  "preview",
+  "check",
+  "fix",
+  "test",
+  "verify",
+  "ship",
+  "prose",
+];
 const REQUIRED = ["dev", "build", "check", "fix", "verify", "prose"];
 const standardScripts = standard.scripts ?? {};
 const PNPM_COMMANDS = ["deploy", "publish", "audit", "ci", "pipeline", "pack"];
@@ -573,7 +586,11 @@ export const CHECKS: Check[] = [
     rule: "the shared names, and none of pnpm's own",
     run: ({ pkg, vitePlus: own, worker: site }) => {
       const scripts = pkg.scripts ?? {};
-      const required = site ? [...REQUIRED, "ship"] : REQUIRED;
+      const required = [
+        ...REQUIRED,
+        ...(site ? ["ship"] : []),
+        ...(site && pkg.private ? ["preview"] : []),
+      ];
       // On Vite+, `fix` is this repository's exactly, and `check` runs `vp check` among any
       // steps a framework needs.
       const wrong: string[] = [];
@@ -587,6 +604,11 @@ export const CHECKS: Check[] = [
       // script is `prose` alone. prose itself runs its own command line.
       if (scripts.prose && scripts.prose !== "prose" && pkg.name !== "@amitkaps/prose") {
         wrong.push(`prose is ${scripts.prose}, not prose`);
+      }
+      // A site's preview serves its build. A package has no site build to serve.
+      if (scripts.preview && !pkg.private) wrong.push("has a preview script, which is a site's");
+      else if (scripts.preview && scripts.preview !== standardScripts.preview) {
+        wrong.push(`preview is ${scripts.preview}, not ${standardScripts.preview}`);
       }
       const drift = [
         ...required.filter((name) => !scripts[name]).map((name) => `no ${name} script`),
@@ -704,8 +726,8 @@ export const CHECKS: Check[] = [
     run: ({ pkg, files, deps }) => {
       if (pkg.private) return undefined;
       const drift: string[] = [];
-      if (pkg.scripts?.prepack !== "vp pack")
-        drift.push(`prepack is ${pkg.scripts?.prepack}, not vp pack`);
+      if (pkg.scripts?.prepack !== "pnpm run build")
+        drift.push(`prepack is ${pkg.scripts?.prepack}, not pnpm run build`);
       if (JSON.stringify(pkg.files) !== '["dist"]')
         drift.push(`files is ${JSON.stringify(pkg.files)}, not ["dist"]`);
       if (pkg.publishConfig?.access !== "public") drift.push("publishConfig.access isn't public");

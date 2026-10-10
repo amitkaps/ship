@@ -70,20 +70,23 @@ A hold is for what a tool can't do, never for a preference. The point of one sta
 
 Every repository uses these names, and runs them with `pnpm run …` in anything automated.
 
-| Script   | Does                                                                      |
-| -------- | ------------------------------------------------------------------------- |
-| `dev`    | the dev server, or `vp pack --watch` for a package                        |
-| `build`  | the production build                                                      |
-| `check`  | format, lint and types: `vp check`, and a framework's own checker         |
-| `fix`    | writes the format and lint fixes: `vp check --fix`                        |
-| `test`   | the tests, when there are any                                             |
-| `verify` | `check`, `test` and `build`, then the site if there is one                |
-| `ship`   | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
-| `prose`  | reads the repository as a document: `prose`, so `pnpm prose build` works  |
+| Script    | Does                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| `dev`     | the dev server, or `vp pack --watch` for a package                        |
+| `build`   | the production build                                                      |
+| `preview` | a site's: serves what `build` wrote, with `vp preview`                    |
+| `check`   | format, lint and types: `vp check`, and a framework's own checker         |
+| `fix`     | writes the format and lint fixes: `vp check --fix`                        |
+| `test`    | the tests, when there are any                                             |
+| `verify`  | `check`, `test` and `build`, then the site if there is one                |
+| `ship`    | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
+| `prose`   | reads the repository as a document: `prose`, so `pnpm prose build` works  |
 
-`dev`, `build`, `check`, `fix`, `verify` and `prose` are in every repository. `test` is there when there are tests, and `ship` when there's a site. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The home page lists every script side by side, so two repositories using one name for different jobs shows up.
+`dev`, `build`, `check`, `fix`, `verify` and `prose` are in every repository. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The home page lists every script side by side, so two repositories using one name for different jobs shows up.
 
 `verify` is what CI runs and what Cloudflare runs before each deploy, so the two can't disagree. `ship` never builds. Some names are pnpm's own commands, and a script by one of those names is skipped by `pnpm <name>`. Don't use `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack` for a script.
+
+A lifecycle script, one pnpm runs on its own like `prepare` on install or `prepack` before packing, only does what another step needs first. base's `prepare` generates the types SvelteKit and the Worker need, so a fresh clone type-checks. A package's `prepack` is `pnpm run build`, so a tarball never ships a stale `dist/`. Neither builds a site or deploys.
 
 ## Cloudflare
 
@@ -144,7 +147,7 @@ The docs are published at `/docs/<file>.md`, so a link to one works on GitHub an
 markz, prose, pagez and sitez are packages, published to npm. A package is any repository whose `package.json` isn't private, and every one releases the same way.
 
 - **The release files** are [package/](../package/README.md)'s, copied into the package unchanged: the release workflow and `.github/release.yml`, which groups the notes. They name no package, so the copies stay identical and the survey checks them word for word.
-- **Packing:** `files` is `["dist"]`, `prepack` is `vp pack`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
+- **Packing:** `files` is `["dist"]`, `prepack` is `pnpm run build`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
 - **Types come from Oxc.** The pack block sets `dts: { generator: "oxc" }`, so `vp pack` writes the `.d.ts` files without the TypeScript compiler, and fails on an export whose type isn't written out. It's set there, not as `isolatedDeclarations` in `tsconfig.json`, which the editor would apply to tests and config too. A package has no `typescript` dependency, like a site: `vp check` type-checks with tsgolint, which Vite+ installs.
 - **Our own packages are bundled, not depended on.** prose and sitez have markz as a dev dependency, and `vp pack` puts it inside `dist/`. So a package's users never install a second markz, and each package releases on its own, in any order. Picking up a new markz takes a release of the package that bundles it.
 
