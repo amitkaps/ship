@@ -4,7 +4,7 @@
 
 ### The docs
 
-Every repository serves its docs on its site, and ship's are at `ship.amitkaps.com/docs/`, so every `AGENTS.md` can link to the standard there.
+Every repository serves its docs on its site, and ship's are at `ship.amitkaps.com/docs/`, so every `AGENTS.md` can link to the standard there. Every repository has the same docs, checked by the survey and written by `pnpm new`, and pagez's design moved to it from sitez.
 
 ### Dependencies
 
@@ -20,12 +20,9 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 
 ## Next, in order
 
-1. The docs every repository has, for a package and for a site, checked by the survey and written by `pnpm new`.
-2. Every `AGENTS.md` links to the standard at `ship.amitkaps.com/docs/standard.md`.
-3. Bring the docs in line: markz, then sitez, then base, which reads its site's pages from `docs/`.
-4. pagez's first pull request: its docs, its command, and what moves from sitez.
-5. sitez bundles pagez.
-6. pagez's first release, by hand, with npm's trusted publisher set up after.
+1. pagez is built, in the order [its plan](https://github.com/amitkaps/pagez/blob/main/docs/plan.md) lists: elementz and the head move in from sitez, then the compiler and its command.
+2. sitez renders its pages through pagez.
+3. pagez's first release, by hand, with npm's trusted publisher set up after.
 
 ## Later
 
