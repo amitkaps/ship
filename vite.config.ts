@@ -8,13 +8,11 @@
  * `defineConfig` comes from `vite-plus`, not `vite`, so the `fmt` and `lint` blocks below
  * type-check too.
  */
-import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
 import { defineConfig } from "vite-plus";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { survey } from "./scripts/survey.ts";
 import { tables } from "./scripts/tables.ts";
+import { bar, pages } from "./scripts/docs.ts";
 
 /** @prose
  * # The commit in the footer
@@ -38,20 +36,13 @@ let drift: Promise<string> | undefined;
 const driftTables = () => (drift ??= survey().then((results) => tables(results, new Date())));
 
 /** @prose
- * # The repository as pages
+ * # The docs
  *
- * The build also runs `prose build` and adds its pages to the site, so the docs read at the same
- * addresses as prose's and markz's, like `/docs/standard.md`, and every repository can link to
- * the standard there. cf deploys only what Vite builds, so the pages go in as part of the build
- * rather than as a second folder. The home page and the 404 page stay this site's own.
+ * [scripts/docs.ts](scripts/docs.ts) renders `docs/` with markz, and the build adds the pages
+ * to what Cloudflare serves, beside the two pages Vite builds. The dev server renders them on
+ * each request, so a doc reads as it's written. Every page, the home page too, opens with the
+ * bar that links the docs.
  */
-const OWN = ["index.html", "404.html", ".prose-build"];
-
-const files = (dir: string): string[] =>
-  readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => relative(dir, join(entry.parentPath, entry.name)));
-
 export default defineConfig({
   build: {
     // Vite builds only index.html unless other pages are listed as inputs.
@@ -70,16 +61,19 @@ export default defineConfig({
         html.includes("__DRIFT__") ? html.replace("__DRIFT__", await driftTables()) : html,
     },
     {
-      name: "prose",
-      apply: "build",
+      name: "docs",
+      transformIndexHtml: (html) => html.replace("__BAR__", bar()),
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const page = pages(commit).find((p) => p.address === req.url?.split(/[?#]/)[0]);
+          if (!page) return next();
+          res.setHeader("content-type", "text/html; charset=utf-8");
+          res.end(page.html);
+        });
+      },
       generateBundle() {
-        execFileSync("pnpm", ["exec", "prose", "build"], { stdio: "ignore" });
-        for (const fileName of files(".prose").filter((file) => !OWN.includes(file))) {
-          this.emitFile({
-            type: "asset",
-            fileName,
-            source: readFileSync(join(".prose", fileName)),
-          });
+        for (const { fileName, html } of pages(commit)) {
+          this.emitFile({ type: "asset", fileName, source: html });
         }
       },
     },

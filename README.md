@@ -2,7 +2,7 @@
 
 How every repository builds, checks and deploys, kept as one working example. [The standard](docs/standard.md) says what the one way is, and [the lessons](docs/lessons.md) say why. [The docs](docs/README.md) also hold the design, the plan and how this repository is developed. This repository follows it exactly, and `pnpm drift` checks the others against it.
 
-It's also a live site, at `ship.amitkaps.com`: a minimal static site, with one `index.html` and a `404.html`, built with Vite+ and deployed to Cloudflare with cf. Any new site starts by copying it. The home page shows the drift check as two tables, the checks and every repository's scripts, as of the last deploy. The rest of the site is the repository read by prose, so the standard is at `ship.amitkaps.com/docs/standard.md`.
+It's also a live site, at `ship.amitkaps.com`: a minimal static site, with one `index.html` and a `404.html`, built with Vite+ and deployed to Cloudflare with cf. Any new site starts by copying it. The home page shows the drift check as two tables, the checks and every repository's scripts, as of the last deploy. The docs are on the site too, rendered with markz, so the standard is at `ship.amitkaps.com/docs/standard.md`.
 
 ```sh
 # needs Node 26: package.json (devEngines) pins it, and pnpm fetches its own pinned version
@@ -22,13 +22,13 @@ pnpm test         # generate a package and a site, and check them
 ## What's here
 
 ```text
-index.html, 404.html    the site's two pages
+index.html, 404.html    the site's two pages, and style.css, which the docs pages share
 vite.config.ts          the build: Vite+, and the Cloudflare plugin
 cloudflare.config.ts    the Worker: name, domain and asset handling
 pnpm-workspace.yaml     pnpm's settings, the same in every repository
 .github/workflows/      CI, which runs pnpm run verify
 docs/                   the design, the standard, the plan, the lessons and development
-scripts/                the survey, pnpm drift, and the home page's tables
+scripts/                the survey, pnpm drift, the home page's tables and the docs pages
 tsconfig.json           the strict type checks, which lint runs
 .github/ruleset.json    the branch rules every main has
 .github/settings.json   the merge settings every repository has

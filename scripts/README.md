@@ -8,3 +8,4 @@ Tools for keeping the repositories in step. Each runs with Node, which reads Typ
 - [release.ts](release.ts) is `pnpm release <repo> <version>`, which opens the pull request that bumps a package's version, with auto-merge on. Merging it releases the package.
 - [new.ts](new.ts) is `pnpm new <name> --package|--site`, which starts a repository that follows the standard, built from this one's files. [new.test.ts](new.test.ts) checks what it writes against the survey and runs its `verify`.
 - [tables.ts](tables.ts) turns the survey into the two tables on the home page, the checks and every repository's scripts. The build writes them in, so the live site shows the drift as of its last deploy.
+- [docs.ts](docs.ts) renders `docs/` with markz into the site's docs pages, and the bar every page opens with.

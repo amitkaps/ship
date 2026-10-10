@@ -132,7 +132,12 @@ Every repository has the same docs, so anyone, or any agent, finds the same thin
 | `docs/lessons.md`     | what building it taught, each lesson what happened and what to do about it   |
 | `docs/usage.md`       | a package's install and use, and a section for agents                        |
 
-A site has no `usage.md`, since the site is what people use. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. A site's own pages read from `docs/`, so the docs on GitHub and on the site are one set of files. `pnpm new` writes a first version of each.
+A site has no `usage.md`, since the site is what people use. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `pnpm new` writes a first version of each.
+
+The docs are published at `/docs/<file>.md`, so a link to one works on GitHub and on the site alike.
+
+- **A package's site is `prose build`,** the repository read as a document, with nothing added to it. Its docs are in the bar, and its code is a page away.
+- **A site shows its docs its own way,** read from `docs/`, so GitHub and the site have one set of files. base renders them with SvelteKit, as the starter it is, and ship renders them with markz beside its dashboard.
 
 ## Releases
 
