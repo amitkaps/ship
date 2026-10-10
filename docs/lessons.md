@@ -76,4 +76,6 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 ## Docs
 
+- **prose builds the last commit, not the working tree.** ship's new docs were missing from its site until they were committed, since `prose build` reads what's committed. Commit before building to see a new file, and the Cloudflare build always does.
+- **A Vite site can carry prose's pages.** cf deploys only what Vite builds, so ship's build runs `prose build` and emits its pages as assets, keeping its own home and 404 pages. Its docs read at the same addresses as markz's and prose's.
 - **A hand-written `.html` page ships its comments.** Vite doesn't strip them, so a `<!-- @prose -->` would show in the page source. Pages here carry no prose, and the README says what they are.
