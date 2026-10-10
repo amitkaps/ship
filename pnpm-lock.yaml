@@ -169,6 +169,9 @@ importers:
 
   .:
     devDependencies:
+      '@amitkaps/markz':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@amitkaps/prose':
         specifier: ^0.4.1
         version: 0.4.1
@@ -186,6 +189,10 @@ importers:
         version: 1.1.0(@types/node@26.6.4)(@vitest/ui@5.0.3)(esbuild@0.28.2)
 
 packages:
+
+  '@amitkaps/markz@0.4.1':
+    resolution: {integrity: sha512-7JZlcN+cE72yUQa++JejqElgoS8h64ZOU1PTiAHVTUWqbSYmA9r3ysYVucYmLYLdsiMDnHMMq50Yd0bot6P0Hg==}
+    engines: {node: '>=26'}
 
   '@amitkaps/prose@0.4.1':
     resolution: {integrity: sha512-CxPLnZpR+b6Bd6JVVzA3KDEnuLKv8SZoY5RAS7nLq1MSo1lFPvsJcNSl3e0b5lO9O1vbRL7TJp1yT47IYxBhXQ==}
@@ -1648,6 +1655,8 @@ packages:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
+
+  '@amitkaps/markz@0.4.1': {}
 
   '@amitkaps/prose@0.4.1': {}
 

@@ -19,6 +19,7 @@
     "new": "node scripts/new.ts"
   },
   "devDependencies": {
+    "@amitkaps/markz": "^0.4.1",
     "@amitkaps/prose": "^0.4.1",
     "@cloudflare/vite-plugin": "2.0.0-beta.sha-91c870c02",
     "@types/node": "^26.6.4",

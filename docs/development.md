@@ -12,7 +12,7 @@ The scripts keep the repositories in step, and run with Node, so there's no buil
 
 ## The site
 
-The home page is `index.html`, with the survey's tables written in at build time, and `404.html`. The build also runs `prose build` and adds its pages, so the docs and the code read at `ship.amitkaps.com/docs/standard.md` and the like. The home page and the 404 page stay this site's own.
+The home page is `index.html`, with the survey's tables written in at build time, and `404.html`. The build also renders `docs/` with markz, so the standard reads at `ship.amitkaps.com/docs/standard.md`, and a bar on every page links the docs in their `nav` order ([scripts/docs.ts](../scripts/docs.ts)). `pnpm dev` renders a doc on each request, so it reads as it's written. All the pages share `style.css`.
 
 The Worker `ship` is connected to this repository, and each push to `main` builds and deploys it. Its dashboard settings are the ones every Worker has, listed in [the standard](standard.md#cloudflare).
 
