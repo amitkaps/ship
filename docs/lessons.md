@@ -26,6 +26,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **A sixth repository made the first table scroll.** Each word in a command was kept from breaking, so a flag's hyphen never split, and `cloudflare.config.ts` no longer fit its narrower column. Only hyphenated words are kept whole now. A new column is worth a look at the page at a laptop's width.
 
+- **Reading the domains found one the config didn't name.** prose's domain was set only in the dashboard, so its heading on the page had no address to link. A domain read from the config is one a deploy can't drop, so prose's `wrangler.toml` names it now, as markz's does.
+
 ## Moving base back
 
 - **A framework needs steps around `vp check`.** SvelteKit generates `$app/tsconfig` and the Worker's types, so `svelte-kit sync` and `wrangler types` run first, and oxlint doesn't type-check `.svelte` files, so `svelte-check` runs after. The standard holds `check` to running `vp check`, not to being only that. `fix` stays exact.

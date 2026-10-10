@@ -163,15 +163,40 @@ const PNPM_COMMANDS = ["deploy", "publish", "audit", "ci", "pipeline", "pack"];
  * A repository deploys if it has a Cloudflare config, and the Worker's name is read from it.
  * `cloudflare.config.ts` is the target; `wrangler.jsonc` and `wrangler.toml` are the ones
  * still on wrangler. A regular expression is enough, since each file states `name` once.
+ *
+ * Its domain is read the same way, the first in `domains` or the first route's `pattern`, and
+ * the page links to it under the repository's name.
  */
-export type Worker = { file: string; name: string };
+export type Worker = { file: string; name: string; domain?: string };
 
 function worker(files: Files): Worker | undefined {
   for (const file of ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"]) {
-    const name = /^\s*"?name"?\s*[:=]\s*"([^"]+)"/m.exec(files[file] ?? "")?.[1];
-    if (name) return { file, name };
+    const text = files[file] ?? "";
+    const name = /^\s*"?name"?\s*[:=]\s*"([^"]+)"/m.exec(text)?.[1];
+    const domain = /(?:domains"?\s*:\s*\[\s*|"?pattern"?\s*[:=]\s*)"([^"]+)"/.exec(text)?.[1];
+    if (name) return { file, name, domain };
   }
   return undefined;
+}
+
+/** @prose
+ * # A package's release
+ *
+ * The version npm gives a user today, read from npm when the survey runs, so the page shows what
+ * people install rather than what's on `main`. A package npm doesn't have yet has no version.
+ */
+export type Release = { name: string; version?: string } | Error;
+
+async function release(name: string): Promise<Release> {
+  try {
+    const res = await fetch(`https://registry.npmjs.org/${name}/latest`);
+    if (res.status === 404) return { name };
+    if (!res.ok) throw new Error(`npm returned HTTP ${res.status}`);
+    const { version } = (await res.json()) as { version: string };
+    return { name, version };
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
 }
 
 /** @prose
@@ -647,6 +672,8 @@ export type Result = {
   findings: (Finding | undefined)[];
   scripts: Record<string, string>;
   worker?: Worker;
+  // Set for a package.
+  release?: Release;
 };
 
 function repoOf(files: Files, found: Latest): Repo {
@@ -666,6 +693,7 @@ async function check(repo: string, local: boolean, found: Latest): Promise<Resul
   }
   if (!files["package.json"]) return { repo, error: "no package.json", findings: [], scripts: {} };
   const it = repoOf(files, found);
+  const published = it.pkg.private || !it.pkg.name ? undefined : release(it.pkg.name);
   it.rules = await rules;
   if (!it.pkg.private) it.labels = await repoLabels(repo);
   return {
@@ -673,6 +701,7 @@ async function check(repo: string, local: boolean, found: Latest): Promise<Resul
     findings: CHECKS.map((c) => hold(repo, c, c.run(it))),
     scripts: it.pkg.scripts ?? {},
     worker: it.worker,
+    release: await published,
   };
 }
 
