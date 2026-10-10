@@ -33,6 +33,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **Five repositories protected `main` four ways.** Classic protection in two, with different settings, a ruleset in one, and nothing in two, including this one. A ruleset is one JSON document, so it can live here and be applied everywhere with `gh api`, which classic protection can't do as cleanly.
 - **GitHub shows a public repository's branch rules to anyone, but not its merge settings.** `GET /repos/{owner}/{repo}/rules/branches/main` works without a login, so the home page checks the rules. Settings like squash-only need the owner's token, so `pnpm drift --github` checks those.
+- **GitHub's rate limit looked like drift.** Logged out, GitHub answers 60 requests an hour, and each `pnpm drift` made 8, so a busy afternoon of runs turned every branch rule and label red with HTTP 403. The rules live on GitHub, not in each repository's `.github/`, so there's no file to read instead. `pnpm drift` now logs in with `gh` when it can, and a check the limit stopped says it wasn't made.
 - **Copied rules drift.** The `@prose` rules were copied into four `AGENTS.md` files and had already started to differ. Each `AGENTS.md` now links to the one copy in prose's docs, and the survey checks the link section is the same everywhere.
 
 ## Releases
@@ -47,7 +48,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 ## New repositories
 
-- **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`.
+- **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`. That's now how every package writes its types.
+- **`vp check` doesn't report what `isolatedDeclarations` needs.** Turned on in markz and sitez, the check passed, and `vp pack` failed on an export with no written type (TS9010). `verify` runs both, so it's caught either way.
 - **A package's first push would have run the release.** The push changes `package.json`, and the package isn't on npm yet, so staging would fail. The workflow now stops for a package npm doesn't have, since its first version is published by hand.
 
 ## Cloudflare

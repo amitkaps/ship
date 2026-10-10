@@ -36,6 +36,7 @@ function checkCell(result: Result, index: number): string {
   const finding = result.findings[index];
   if (!finding) return `<td class="na">—</td>`;
   const value = finding.value ? ` ${code(finding.value)}` : "";
+  if (finding.unchecked) return `<td class="na">Not checked: ${escape(finding.unchecked)}</td>`;
   if (!finding.drift.length) return `<td class="ok">✓${value}</td>`;
   const list = finding.drift.map((d) => `<li>${escape(d)}</li>`).join("");
   if (finding.held) {
