@@ -118,6 +118,22 @@ Every `main` takes changes the same way. Work happens on a branch, in a pull req
 
 Every `AGENTS.md` opens with the same two sections as [this repository's](../AGENTS.md), word for word. "Standard" points at this page, and says how changes reach `main`. "Prose" points at the rules in [prose's usage](https://prose.amitkaps.com/docs/usage.md#for-agents). The rules live there, once, and aren't copied into each repository, since the copies had already started to differ. The rest of an `AGENTS.md` is the repository's own. A `CLAUDE.md` holds only `@AGENTS.md`, so Claude Code reads the same file.
 
+## Docs
+
+Every repository has the same docs, so anyone, or any agent, finds the same things in the same places.
+
+| File                  | Holds                                                                        |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `README.md`           | what it is, the commands, and a link to `docs/`                              |
+| `docs/README.md`      | the docs in reading order: `nav` in its metadata, and a line for each        |
+| `docs/design.md`      | what it is, why it's built this way, and what it isn't                       |
+| `docs/plan.md`        | where it is, a section per release or milestone, what's next, later and open |
+| `docs/development.md` | only what's its own: its extra scripts, its site, its release                |
+| `docs/lessons.md`     | what building it taught, each lesson what happened and what to do about it   |
+| `docs/usage.md`       | a package's install and use, and a section for agents                        |
+
+A site has no `usage.md`, since the site is what people use. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. A site's own pages read from `docs/`, so the docs on GitHub and on the site are one set of files. `pnpm new` writes a first version of each.
+
 ## Releases
 
 markz, prose, pagez and sitez are packages, published to npm. A package is any repository whose `package.json` isn't private, and every one releases the same way.

@@ -9,7 +9,7 @@
  * Nothing here is a template. Each file is built from this repository's own: the versions,
  * engines and scripts from `package.json`, the strict options from `tsconfig.json`, the `lint`
  * block from `vite.config.ts`, the Vite+ override, CI, the shared sections of `AGENTS.md`, and a
- * package's release files from `package/`. A tool this repository doesn't use, like publint, is
+ * package's release files from `package/`. The docs are the outline the standard names. A tool this repository doesn't use, like publint, is
  * at npm's latest, as the survey wants. So a change to the standard reaches the next repository
  * with no second copy to update, and `pnpm test` checks what it writes against the survey.
  *
@@ -268,8 +268,116 @@ pnpm dev
 pnpm verify    # what CI runs
 \`\`\`
 
-It follows [ship's standard](https://ship.amitkaps.com) for how it builds, checks and ${kind === "site" ? "deploys" : "releases"}.
+Read [the docs](docs/README.md) for its design, plan and lessons. It follows [ship's standard](https://ship.amitkaps.com/docs/standard.md) for how it builds, checks and ${kind === "site" ? "deploys" : "releases"}.
 `;
+}
+
+/** @prose
+ * # The docs
+ *
+ * The docs every repository has, each a first version to write over. They say what goes in each
+ * section rather than leaving it empty, so the outline is there from the first commit.
+ */
+function docs(name: string, kind: Kind, description: string): Record<string, string> {
+  const standard = "https://ship.amitkaps.com/docs/standard.md";
+  type Page = [file: string, title: string, what: string];
+  const usage: Page = ["usage.md", "Usage", "install it, use it, and the snippet for agents."];
+  const pages: Page[] = [
+    ["design.md", "Design", "what it is, why it's built this way, and what it isn't."],
+    ...(kind === "package" ? [usage] : []),
+    ["plan.md", "Plan", "what's done and what's next, in order."],
+    ["lessons.md", "Lessons", "what building it taught, for the next change."],
+    [
+      "development.md",
+      "Development",
+      `build, test and ${kind === "site" ? "deploy" : "release"} it.`,
+    ],
+  ];
+  const files: Record<string, string> = {
+    "docs/README.md": `---
+nav: [${pages.map(([file]) => file).join(", ")}]
+---
+
+# Docs
+
+The writing that spans the code, in reading order.
+
+${pages.map(([file, title, what], i) => `${i + 1}. [${title}](${file}): ${what}`).join("\n")}
+`,
+    "docs/design.md": `# Design
+
+## What it is
+
+${description}
+
+## Why
+
+Why it's built this way, and the choices that follow from that.
+
+## What it isn't
+
+What it leaves out on purpose, so nobody adds it back.
+`,
+    "docs/plan.md": `# Plan
+
+## Where it is
+
+### ${kind === "package" ? "0.0.0" : "Started"}
+
+Started from [ship's standard](${standard}), with \`pnpm new\`.
+
+## Next, in order
+
+1. The first thing ${name} does.
+
+## Later
+
+## Open questions
+`,
+    "docs/lessons.md": `# Lessons
+
+What building ${name} taught, for whoever changes it next. Each lesson says what happened and what to do about it.
+`,
+    "docs/development.md": `# Development
+
+How ${name} is built and changed. What every repository shares, like the scripts, CI and ${
+      kind === "site" ? "deploys" : "releases"
+    }, is in [ship's standard](${standard}), and isn't repeated here.
+
+## Build and test
+
+\`\`\`sh
+pnpm install
+pnpm dev
+pnpm verify    # what CI runs
+\`\`\`
+`,
+  };
+  if (kind === "package") {
+    files["docs/usage.md"] = `# Usage
+
+## Install
+
+\`\`\`sh
+pnpm add @${OWNER}/${name}
+\`\`\`
+
+It needs Node 26 or newer, the Node it's built and tested on.
+
+## Use
+
+\`\`\`ts
+import { hello } from "@${OWNER}/${name}";
+
+hello("world"); // "Hello, world."
+\`\`\`
+
+## For agents
+
+What an agent using ${name} should know, as a snippet to copy into its instructions.
+`;
+  }
+  return files;
 }
 
 function cloudflareConfig(name: string): string {
@@ -347,6 +455,7 @@ export async function write(
     "README.md": readme(name, kind, description),
     ".gitignore": read(".gitignore"),
     LICENSE: read("LICENSE"),
+    ...docs(name, kind, description),
   };
   if (kind === "site") {
     files["cloudflare.config.ts"] = cloudflareConfig(name);
