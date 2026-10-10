@@ -109,6 +109,7 @@ Previews           off
 Every `main` takes changes the same way. Work happens on a branch, in a pull request, and `ci` has to pass on a branch that's up to date with `main`. The pull request is squash-merged, so `main` reads as one commit per change, and nobody pushes to it, admins included.
 
 - **Branch rules:** one ruleset, named `main`, from [.github/ruleset.json](../.github/ruleset.json). It requires a pull request with no approvals, since there's one maintainer, and the `ci` check. It keeps history linear, and blocks force pushes and deleting the branch. Nobody bypasses it.
+- **Actions:** every workflow uses the actions at the versions this repository's do. A repository can add steps of its own, but the versions move here first, like every other version, so there's no Dependabot.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 
 `pnpm protect` applies both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. `pnpm drift --github` checks the merge settings too, which only the owner can read.
