@@ -484,6 +484,24 @@ export const CHECKS: Check[] = [
     },
   },
   {
+    name: "Cooldown",
+    group: "Setup",
+    rule: "pnpm's wait on a new version, with only our own scope excluded",
+    run: ({ files }) => {
+      const workspace = files["pnpm-workspace.yaml"] ?? "";
+      const drift: string[] = [];
+      const age = /^minimumReleaseAge:\s*(\S+)/m.exec(workspace)?.[1];
+      if (age) drift.push(`sets minimumReleaseAge to ${age}, not pnpm's default`);
+      const exclude = /^minimumReleaseAgeExclude:\n((?:\s+-.*\n?)*)/m.exec(workspace)?.[1] ?? "";
+      const names = [...exclude.matchAll(/-\s*"?([^"\n]+)"?/g)].map((m) => m[1]?.trim());
+      if (!names.includes("@amitkaps/*")) drift.push("doesn't exclude @amitkaps/*");
+      for (const name of names.filter((n) => n !== "@amitkaps/*")) {
+        drift.push(`excludes ${name}`);
+      }
+      return { drift };
+    },
+  },
+  {
     name: "Scripts",
     group: "Setup",
     rule: "the shared names, and none of pnpm's own",

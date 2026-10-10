@@ -7,6 +7,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **An exact pin with `onFail: error` breaks on every pnpm release.** A newer global pnpm refused to run with `ERR_PNPM_BAD_PM_VERSION`. `onFail: download` makes pnpm fetch and run the pinned version instead, which was tested with a global 12.10.1 and a pinned 12.9.1. A range in `devEngines` also works, but lets machines run different versions.
 - **Some script names never run.** `pnpm deploy`, `pnpm audit`, `pnpm publish` and `pnpm ci` are pnpm's own commands, so a script by one of those names is skipped. That's why the deploy script is `ship` and the drift check is `drift`.
 - **`npx` refuses to run in a repository whose `devEngines` names pnpm.** Use `pnpm exec` for an installed tool, and `pnpm dlx` for one that isn't.
+- **An exception for one version needed an edit on every release.** ship and base turned pnpm's one-day wait off, and the others named each of our new versions in `minimumReleaseAgeExclude`. pnpm writes that list itself on install, in a form `vp check` rejects, which failed a pull request in pagez. The wait is pnpm's default everywhere now, with `@amitkaps/*` excluded, a pattern pnpm accepts, so a release changes nothing here.
 
 ## Vite+
 

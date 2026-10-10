@@ -138,7 +138,12 @@ function workspace(kind: Kind): string {
     "# pnpm 12 reads project settings from here. It's a settings file, not a workspace, and its",
     "# settings are the standard's, from ship.",
   ].join("\n");
-  const parts = [header, ...(kind === "site" ? [pick("allowBuilds")] : []), pick("overrides")];
+  const parts = [
+    header,
+    pick("minimumReleaseAgeExclude"),
+    ...(kind === "site" ? [pick("allowBuilds")] : []),
+    pick("overrides"),
+  ];
   return parts.join("\n\n");
 }
 
