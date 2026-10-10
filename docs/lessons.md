@@ -45,6 +45,11 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **Pushing a tag by hand was the step that went wrong.** A release was a merge, then a tag pushed from a fresh `main`, then npm's approval. The tag held nothing the merge didn't, and pushing it is where the branch named `v0.4.0` got in the way. The workflow now runs on the merge and tags the commit itself, and `pnpm release` opens the pull request. Only npm's 2FA approval is left by hand, since it's the one check a merge shouldn't get past. The pull request is opened with the owner's login, not by a workflow, because GitHub runs no CI on a pull request a workflow's token opens.
 - **Bundling our own packages removes the release order.** prose already had markz as a dev dependency, inside its `dist/`, so it depends on nothing at install time. sitez's published types never mention markz, so it can do the same, and then any package can release at any time.
 
+## New repositories
+
+- **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`.
+- **A package's first push would have run the release.** The push changes `package.json`, and the package isn't on npm yet, so staging would fail. The workflow now stops for a package npm doesn't have, since its first version is published by hand.
+
 ## Cloudflare
 
 - **The Git integration deploys whether or not GitHub CI passed.** The fix is a build command that runs the checks. `pnpm run verify` fails first, and nothing deploys.

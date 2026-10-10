@@ -8,13 +8,15 @@ It's also a live site, at `ship.amitkaps.com`: a minimal static site, with one `
 # needs Node 26: package.json (devEngines) pins it, and pnpm fetches its own pinned version
 pnpm install
 pnpm dev          # local dev server
-pnpm verify       # check + build: what CI and every deploy run
+pnpm verify       # check, test and build: what CI and every deploy run
 pnpm ship         # upload the last build (normally left to the Git integration)
 pnpm prose        # read the repository as a document
 pnpm drift        # check every repository against the standard, as of GitHub's main
 pnpm drift --local  # the same, from the checkouts next to this one
 pnpm protect      # apply the branch rules, merge settings and package labels on GitHub
 pnpm release sitez 0.5.0  # open the pull request that releases a package
+pnpm new <name> --package  # start a repository that follows the standard, or --site
+pnpm test         # generate a package and a site, and check them
 ```
 
 ## What's here

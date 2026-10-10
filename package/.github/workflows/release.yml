@@ -30,7 +30,8 @@ concurrency:
 
 jobs:
   # A change to `package.json` that leaves `version` alone, like a dependency bump, finds its tag
-  # already there and stops here.
+  # already there and stops here. So does a package that isn't on npm yet, whose first version is
+  # published by hand, since npm trusts this workflow only once the package exists.
   version:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -42,8 +43,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          name="$(node -p 'require("./package.json").name')"
           tag="v$(node -p 'require("./package.json").version')"
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+          if ! curl -sf "https://registry.npmjs.org/$name" >/dev/null; then
+            echo "$name isn't on npm yet: publish its first version by hand"
+          elif gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
             echo "$tag is already tagged"
           else
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
