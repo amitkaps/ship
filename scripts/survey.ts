@@ -35,6 +35,13 @@ const FILES = [
   ".github/workflows/release.yml",
   ".github/release.yml",
   ".github/dependabot.yml",
+  "README.md",
+  "docs/README.md",
+  "docs/design.md",
+  "docs/plan.md",
+  "docs/development.md",
+  "docs/lessons.md",
+  "docs/usage.md",
 ];
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -309,6 +316,21 @@ function section(text: string, heading: string): string | undefined {
 }
 
 const agents = read(join(here, "AGENTS.md"));
+
+/** @prose
+ * # The docs
+ *
+ * Every repository has the same docs in `docs/`, and a package has `usage.md` too. Each is listed
+ * in the `nav` of `docs/README.md`, which sets the reading order on GitHub and on the site, and
+ * the README links to the docs. Only the files are checked, not what's in them.
+ */
+const DOCS = ["design.md", "plan.md", "development.md", "lessons.md"];
+
+const nav = (text: string): string[] =>
+  (/^nav:\s*\[([^\]]*)\]/m.exec(text)?.[1] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
 
 /** @prose
  * # The actions
@@ -623,6 +645,26 @@ export const CHECKS: Check[] = [
       }
       if (files[".github/dependabot.yml"]) drift.push("has a dependabot.yml");
       return { drift: [...new Set(drift)] };
+    },
+  },
+  {
+    name: "Docs",
+    group: "Setup",
+    rule: "docs/ has design, plan, development and lessons, and usage for a package, in its nav",
+    run: ({ pkg, files }) => {
+      const want = pkg.private ? DOCS : [...DOCS, "usage.md"];
+      const index = files["docs/README.md"];
+      const drift = want.filter((name) => !files[`docs/${name}`]).map((name) => `no docs/${name}`);
+      if (!index) drift.push("no docs/README.md");
+      else {
+        const listed = nav(index);
+        for (const name of want.filter((n) => files[`docs/${n}`] && !listed.includes(n))) {
+          drift.push(`${name} isn't in the nav`);
+        }
+      }
+      if (!/\]\(\.?\/?docs\//.test(files["README.md"] ?? ""))
+        drift.push("README.md doesn't link to docs/");
+      return { drift };
     },
   },
   {
