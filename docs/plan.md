@@ -35,4 +35,6 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 
 ## Open questions
 
+- **Pages that aren't the repository.** markz's quality page and ship's dashboard are built pages, not files in the commit. As things are, the quality page sits outside prose's frame with no bar, and ship renders its docs with markz beside a hand-written page. Either the page is hidden from the rest of the site, or each site grows a small generator of its own, without prose's styles or syntax highlighting, repeating what prose already does. prose has said it isn't a site generator, so the answer may be a way to hand prose a page, sitez publishing a package's site, or something else.
+
 - Should a site's docs be checked for the same sections, or only for the files?
