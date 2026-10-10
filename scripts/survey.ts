@@ -712,9 +712,13 @@ export const CHECKS: Check[] = [
       if (!/publint:\s*\{[^}]*strict:\s*true/.test(files["vite.config.ts"] ?? "")) {
         drift.push("pack doesn't run publint with strict: true");
       }
-      // Oxc writes the types, file by file, which needs each export's type written out.
-      if (!/"isolatedDeclarations"\s*:\s*true/.test(files["tsconfig.json"] ?? "")) {
-        drift.push("tsconfig.json doesn't set isolatedDeclarations");
+      // Oxc writes the types, set in pack rather than tsconfig.json, so the editor doesn't hold
+      // tests and config to what only the published code needs.
+      if (!/dts:\s*\{[^}]*generator:\s*"oxc"/.test(files["vite.config.ts"] ?? "")) {
+        drift.push('pack doesn\'t write types with generator: "oxc"');
+      }
+      if (/"isolatedDeclarations"\s*:\s*true/.test(files["tsconfig.json"] ?? "")) {
+        drift.push("tsconfig.json sets isolatedDeclarations, which pack sets");
       }
       if (deps.typescript) drift.push("has typescript, which Oxc's types don't need");
       for (const name of Object.keys(pkg.dependencies ?? {})) {
