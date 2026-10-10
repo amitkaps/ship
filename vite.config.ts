@@ -8,6 +8,9 @@
  * `defineConfig` comes from `vite-plus`, not `vite`, so the `fmt` and `lint` blocks below
  * type-check too.
  */
+import { execFileSync } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { defineConfig } from "vite-plus";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { survey } from "./scripts/survey.ts";
@@ -34,6 +37,21 @@ const commit = (process.env.WORKERS_CI_COMMIT_SHA ?? "dev").slice(0, 7);
 let drift: Promise<string> | undefined;
 const driftTables = () => (drift ??= survey().then((results) => tables(results, new Date())));
 
+/** @prose
+ * # The repository as pages
+ *
+ * The build also runs `prose build` and adds its pages to the site, so the docs read at the same
+ * addresses as prose's and markz's, like `/docs/standard.md`, and every repository can link to
+ * the standard there. cf deploys only what Vite builds, so the pages go in as part of the build
+ * rather than as a second folder. The home page and the 404 page stay this site's own.
+ */
+const OWN = ["index.html", "404.html", ".prose-build"];
+
+const files = (dir: string): string[] =>
+  readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(dir, join(entry.parentPath, entry.name)));
+
 export default defineConfig({
   build: {
     // Vite builds only index.html unless other pages are listed as inputs.
@@ -50,6 +68,20 @@ export default defineConfig({
       name: "drift",
       transformIndexHtml: async (html) =>
         html.includes("__DRIFT__") ? html.replace("__DRIFT__", await driftTables()) : html,
+    },
+    {
+      name: "prose",
+      apply: "build",
+      generateBundle() {
+        execFileSync("pnpm", ["exec", "prose", "build"], { stdio: "ignore" });
+        for (const fileName of files(".prose").filter((file) => !OWN.includes(file))) {
+          this.emitFile({
+            type: "asset",
+            fileName,
+            source: readFileSync(join(".prose", fileName)),
+          });
+        }
+      },
     },
     /** @prose
      * # Assets only

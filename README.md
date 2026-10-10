@@ -1,8 +1,8 @@
 # ship
 
-How every repository builds, checks and deploys, kept as one working example. [The standard](docs/standard.md) says what the one way is, and [the lessons](docs/lessons.md) say why. This repository follows it exactly, and `pnpm drift` checks the others against it.
+How every repository builds, checks and deploys, kept as one working example. [The standard](docs/standard.md) says what the one way is, and [the lessons](docs/lessons.md) say why. [The docs](docs/README.md) also hold the design, the plan and how this repository is developed. This repository follows it exactly, and `pnpm drift` checks the others against it.
 
-It's also a live site, at `ship.amitkaps.com`: a minimal static site, with one `index.html` and a `404.html`, built with Vite+ and deployed to Cloudflare with cf. Any new site starts by copying it. The home page shows the drift check as two tables, the checks and every repository's scripts, as of the last deploy.
+It's also a live site, at `ship.amitkaps.com`: a minimal static site, with one `index.html` and a `404.html`, built with Vite+ and deployed to Cloudflare with cf. Any new site starts by copying it. The home page shows the drift check as two tables, the checks and every repository's scripts, as of the last deploy. The rest of the site is the repository read by prose, so the standard is at `ship.amitkaps.com/docs/standard.md`.
 
 ```sh
 # needs Node 26: package.json (devEngines) pins it, and pnpm fetches its own pinned version
@@ -27,7 +27,7 @@ vite.config.ts          the build: Vite+, and the Cloudflare plugin
 cloudflare.config.ts    the Worker: name, domain and asset handling
 pnpm-workspace.yaml     pnpm's settings, the same in every repository
 .github/workflows/      CI, which runs pnpm run verify
-docs/                   the standard and its lessons
+docs/                   the design, the standard, the plan, the lessons and development
 scripts/                the survey, pnpm drift, and the home page's tables
 tsconfig.json           the strict type checks, which lint runs
 .github/ruleset.json    the branch rules every main has
@@ -36,18 +36,3 @@ tsconfig.json           the strict type checks, which lint runs
 package/                the release files every package copies in
 AGENTS.md, CLAUDE.md    instructions for agents, opening with the shared sections
 ```
-
-## Deploy
-
-The Worker `ship` is connected to this repository, and each push to `main` builds and deploys it. Its dashboard settings are the ones every Worker has, listed in [the standard](docs/standard.md#cloudflare).
-
-## Beta packages
-
-Two packages are still beta. Check them with `pnpm view <name> dist-tags`.
-
-| Package                   | Pinned                     | Status (2026-10-09)                 | Done when                      |
-| ------------------------- | -------------------------- | ----------------------------------- | ------------------------------ |
-| `@cloudflare/vite-plugin` | `2.0.0-beta.sha-91c870c02` | `beta` tag only; `latest` is 1.63.1 | `latest` is a 2.x release      |
-| `cf`                      | `1.0.0-beta.14`            | `latest` is the beta                | `latest` is a non-beta release |
-
-When a package graduates, update the pins in `package.json` and the table above. Then run `pnpm run verify` and a deploy from the Git-connected Worker before you rely on it.
