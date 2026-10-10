@@ -189,18 +189,38 @@ type Rule = { type: string; parameters?: Record<string, unknown> };
 
 const ruleset = JSON.parse(read(join(here, ".github", "ruleset.json"))) as { rules: Rule[] };
 
-async function branchRules(repo: string): Promise<Rule[] | Error> {
+/** @prose
+ * # GitHub's rate limit
+ *
+ * Without a login, GitHub answers 60 requests an hour, and each survey makes a few for every
+ * repository, so a handful of runs can use them up. That's not drift: the check says it wasn't
+ * made, and doesn't fail `pnpm drift`. `pnpm drift` logs in with `gh` when it can.
+ */
+class RateLimit extends Error {}
+
+async function github(path: string): Promise<unknown> {
   try {
     const token = process.env["GITHUB_TOKEN"];
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${repo}/rules/branches/main`, {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${path}`, {
       headers: token ? { authorization: `Bearer ${token}` } : {},
     });
+    if ([403, 429].includes(res.status) && res.headers.get("x-ratelimit-remaining") === "0") {
+      return new RateLimit("GitHub's rate limit was reached");
+    }
     if (!res.ok) throw new Error(`GitHub returned HTTP ${res.status}`);
-    return (await res.json()) as Rule[];
+    return await res.json();
   } catch (error) {
     return error instanceof Error ? error : new Error(String(error));
   }
 }
+
+function unread(error: Error): Finding {
+  if (error instanceof RateLimit) return { drift: [], unchecked: error.message };
+  return { drift: [`GitHub couldn't be read: ${error.message}`] };
+}
+
+const branchRules = (repo: string) =>
+  github(`${repo}/rules/branches/main`) as Promise<Rule[] | Error>;
 
 function rulesDrift(found: Rule[]): string[] {
   if (!found.length) return ["main has no branch rules"];
@@ -242,16 +262,8 @@ const labelNames = (
 ).map((label) => label.name);
 
 async function repoLabels(repo: string): Promise<string[] | Error> {
-  try {
-    const token = process.env["GITHUB_TOKEN"];
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${repo}/labels?per_page=100`, {
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) throw new Error(`GitHub returned HTTP ${res.status}`);
-    return ((await res.json()) as { name: string }[]).map((label) => label.name);
-  } catch (error) {
-    return error instanceof Error ? error : new Error(String(error));
-  }
+  const found = (await github(`${repo}/labels?per_page=100`)) as { name: string }[] | Error;
+  return found instanceof Error ? found : found.map((label) => label.name);
 }
 
 /** @prose
@@ -291,9 +303,10 @@ type Repo = {
  * beside it. The versions come first, then how the repository is set up. A check returns what
  * the repository has, like the version it pins, and what has drifted, which is empty when
  * nothing has. It returns `undefined` when it doesn't apply, like the Cloudflare check for a
- * package with no site, or the typescript check for a repository without typescript.
+ * package with no site, or the typescript check for a repository without typescript. A check
+ * that couldn't be made says why in `unchecked`, with no drift.
  */
-export type Finding = { value?: string; drift: string[]; held?: string };
+export type Finding = { value?: string; drift: string[]; held?: string; unchecked?: string };
 
 /** @prose
  * # Held
@@ -531,7 +544,7 @@ export const CHECKS: Check[] = [
     rule: "main takes squashed pull requests that pass ci, from .github/ruleset.json",
     run: ({ rules }) => {
       if (!rules) return undefined;
-      if (rules instanceof Error) return { drift: [`GitHub couldn't be read: ${rules.message}`] };
+      if (rules instanceof Error) return unread(rules);
       return { drift: rulesDrift(rules) };
     },
   },
@@ -567,7 +580,7 @@ export const CHECKS: Check[] = [
   {
     name: "Package",
     group: "Release",
-    rule: "packs dist with publint, publishes publicly, and bundles our packages",
+    rule: "packs dist with publint and Oxc's types, publishes publicly, and bundles our packages",
     run: ({ pkg, files, deps }) => {
       if (pkg.private) return undefined;
       const drift: string[] = [];
@@ -580,6 +593,11 @@ export const CHECKS: Check[] = [
       if (!/publint:\s*\{[^}]*strict:\s*true/.test(files["vite.config.ts"] ?? "")) {
         drift.push("pack doesn't run publint with strict: true");
       }
+      // Oxc writes the types, file by file, which needs each export's type written out.
+      if (!/"isolatedDeclarations"\s*:\s*true/.test(files["tsconfig.json"] ?? "")) {
+        drift.push("tsconfig.json doesn't set isolatedDeclarations");
+      }
+      if (deps.typescript) drift.push("has typescript, which Oxc's types don't need");
       for (const name of Object.keys(pkg.dependencies ?? {})) {
         if (name.startsWith("@amitkaps/"))
           drift.push(`depends on ${name}, rather than bundling it`);
@@ -593,7 +611,7 @@ export const CHECKS: Check[] = [
     rule: "a package has the labels its release notes are grouped by",
     run: ({ pkg, labels }) => {
       if (pkg.private || !labels) return undefined;
-      if (labels instanceof Error) return { drift: [`GitHub couldn't be read: ${labels.message}`] };
+      if (labels instanceof Error) return unread(labels);
       return {
         drift: labelNames
           .filter((name) => !labels.includes(name))

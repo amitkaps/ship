@@ -111,7 +111,7 @@ Every `main` takes changes the same way. Work happens on a branch, in a pull req
 - **Branch rules:** one ruleset, named `main`, from [.github/ruleset.json](../.github/ruleset.json). It requires a pull request with no approvals, since there's one maintainer, and the `ci` check. It keeps history linear, and blocks force pushes and deleting the branch. Nobody bypasses it.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 
-`pnpm protect` applies both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. `pnpm drift --github` checks the merge settings too, which only the owner can read.
+`pnpm protect` applies both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. `pnpm drift --github` checks the merge settings too, which only the owner can read.
 
 ## Agents
 
@@ -123,6 +123,7 @@ markz, prose and sitez are packages, published to npm. A package is any reposito
 
 - **The release files** are [package/](../package/README.md)'s, copied into the package unchanged: the release workflow and `.github/release.yml`, which groups the notes. They name no package, so the copies stay identical and the survey checks them word for word.
 - **Packing:** `files` is `["dist"]`, `prepack` is `vp pack`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
+- **Types come from Oxc.** `tsconfig.json` turns on `isolatedDeclarations`, with `declaration`, so each export states its type and `vp pack` writes the `.d.ts` files without the TypeScript compiler. A package has no `typescript` dependency, like a site: `vp check` type-checks with tsgolint, which Vite+ installs.
 - **Our own packages are bundled, not depended on.** prose and sitez have markz as a dev dependency, and `vp pack` puts it inside `dist/`. So a package's users never install a second markz, and each package releases on its own, in any order. Picking up a new markz takes a release of the package that bundles it.
 
 To release, run `pnpm release` here, with the package and its new version.
@@ -192,4 +193,4 @@ pnpm new <name> --site --description "What it is, in a sentence." --push
 
 It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and runs `pnpm protect`. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
 
-A new package's types come from Oxc, with `isolatedDeclarations` on, so it needs no `typescript` dependency, and each export states its type. `pnpm test` here generates a package and a site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.
+`pnpm test` here generates a package and a site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.
