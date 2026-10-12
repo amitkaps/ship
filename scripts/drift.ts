@@ -19,19 +19,30 @@
  * A folder named on the command line, like `pnpm drift ../site`, is checked in place of the
  * repositories, from disk. That's for one that follows the standard without being in `REPOS`, such
  * as a private repository, which the public home page shouldn't name. Its branch rules, labels and
- * holds aren't checked, since they belong to a listed repository.
+ * holds aren't checked, since they belong to a listed repository. `--cloudflare` reads its Worker
+ * from its own config, and `--github` takes the folder's name as the repository's.
+ *
+ * With more than one Cloudflare account, `cf` can't pick one on its own, so `--cloudflare` stops
+ * at once without `CLOUDFLARE_ACCOUNT_ID`, rather than partway through.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OWNER, checkFolder, nodeMajor, survey } from "./survey.ts";
+import { OWNER, checkFolder, folderWorker, nodeMajor, survey } from "./survey.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cloudflare = process.argv.includes("--cloudflare");
 const local = process.argv.includes("--local");
 const github = process.argv.includes("--github");
 const folders = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
+
+if (cloudflare && !process.env["CLOUDFLARE_ACCOUNT_ID"]) {
+  console.error(
+    "--cloudflare needs CLOUDFLARE_ACCOUNT_ID set, to say which account's Workers to read.",
+  );
+  process.exit(1);
+}
 
 if (!process.env["GITHUB_TOKEN"]) {
   try {
@@ -101,6 +112,9 @@ function builds(name: string): string[] {
 let drifted = false;
 for (const folder of folders) {
   const drift = (await checkFolder(resolve(folder))).flatMap((f) => f.drift);
+  const site = folderWorker(resolve(folder));
+  if (cloudflare && site) drift.push(...builds(site.name));
+  if (github) drift.push(...merges(basename(resolve(folder))));
   drifted ||= drift.length > 0;
   console.log(drift.length ? `✗ ${folder}` : `✓ ${folder}`);
   for (const line of drift) console.log(`    ${line}`);

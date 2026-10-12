@@ -824,3 +824,6 @@ export async function checkFolder(dir: string): Promise<Finding[]> {
   const it = repoOf(fromDisk(dir), await latest());
   return CHECKS.flatMap((c) => c.run(it) ?? []);
 }
+
+/** A folder's Worker, from its own config, for `pnpm drift --cloudflare <folder>`. */
+export const folderWorker = (dir: string): Worker | undefined => worker(fromDisk(dir));
