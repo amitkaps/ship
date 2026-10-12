@@ -15,17 +15,23 @@
  *
  * `--github` also reads each repository's merge settings, which GitHub shows only to its owner, so
  * it needs `gh` logged in. They're compared with [.github/settings.json](../.github/settings.json).
+ *
+ * A folder named on the command line, like `pnpm drift ../site`, is checked in place of the
+ * repositories, from disk. That's for one that follows the standard without being in `REPOS`, such
+ * as a private repository, which the public home page shouldn't name. Its branch rules, labels and
+ * holds aren't checked, since they belong to a listed repository.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OWNER, nodeMajor, survey } from "./survey.ts";
+import { OWNER, checkFolder, nodeMajor, survey } from "./survey.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cloudflare = process.argv.includes("--cloudflare");
 const local = process.argv.includes("--local");
 const github = process.argv.includes("--github");
+const folders = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 
 if (!process.env["GITHUB_TOKEN"]) {
   try {
@@ -93,7 +99,13 @@ function builds(name: string): string[] {
 }
 
 let drifted = false;
-for (const result of await survey({ local })) {
+for (const folder of folders) {
+  const drift = (await checkFolder(resolve(folder))).flatMap((f) => f.drift);
+  drifted ||= drift.length > 0;
+  console.log(drift.length ? `✗ ${folder}` : `✓ ${folder}`);
+  for (const line of drift) console.log(`    ${line}`);
+}
+for (const result of folders.length ? [] : await survey({ local })) {
   const findings = result.findings.flatMap((f) => (f ? [f] : []));
   const drift = result.error ? [result.error] : findings.flatMap((f) => (f.held ? [] : f.drift));
   if (cloudflare && result.worker) drift.push(...builds(result.worker.name));

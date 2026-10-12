@@ -207,6 +207,10 @@ Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../script
 3. Run `pnpm protect <repo>`, for the branch rules, the merge settings and a package's labels.
 4. Set up what drift can't reach. A site's Worker gets the build settings above, which `pnpm drift --cloudflare` checks. A package gets its trusted publisher on npm.
 
+### Following it unlisted
+
+A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm protect <repo>` still applies. Where it can't follow a rule, its own docs say which and why.
+
 ### Starting one
 
 `pnpm new` starts a repository that already follows the standard, in the folder next to this one.
