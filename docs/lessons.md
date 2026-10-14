@@ -55,7 +55,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 ## New repositories
 
-- **A tool had to explain itself away.** repo, the scripts that list every repository, has nothing to serve or build, so drift wanted a `dev` and a `build` it would never use, and its own docs said why it had none. A rule a repository has to argue against in its docs is the standard's gap, not the repository's. A tool is now a kind, with no `dev` or `build`, and `pnpm new --tool` starts one.
+- **A tool had to explain itself away.** A private repository of scripts, run on a laptop, has nothing to serve or build, so drift wanted a `dev` and a `build` it would never use, and its own docs said why it had none. A rule a repository has to argue against in its docs is the standard's gap, not the repository's. A tool is now a kind, with no `dev` or `build`, and `pnpm new --tool` starts one.
 
 - **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`. That's now how every package writes its types.
 - **`vp check` doesn't report what `isolatedDeclarations` needs.** Turned on in markz and sitez, the check passed, and `vp pack` failed on an export with no written type (TS9010). `verify` runs both, so it's caught either way.

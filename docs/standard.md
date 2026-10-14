@@ -10,7 +10,7 @@ What a repository must have follows from three facts, each read from where it al
 
 - **A package** is published to npm, and its `package.json` isn't `private`.
 - **A site** deploys to a Cloudflare Worker, and has a Worker config.
-- **A tool** is neither: scripts run on a laptop, like the one that lists every repository.
+- **A tool** is neither: scripts run on a laptop.
 
 A site or a tool is **internal** when its repository is private on GitHub. An internal site is still a site, deployed the same way, but behind Cloudflare Access, as [Internal sites](#internal-sites) says. A package can't be internal, since npm is public.
 
