@@ -2,7 +2,10 @@
  * # New
  *
  * Starts a repository that follows the standard from its first commit. `pnpm new <name> --package`
- * starts an npm package, and `pnpm new <name> --site` a site on Cloudflare. It writes the folder
+ * starts an npm package, `pnpm new <name> --site` a site on Cloudflare, and `pnpm new <name> --tool`
+ * scripts run on a laptop, with no site or release. `--internal` makes a site or a tool private: its
+ * GitHub repository is private, it isn't added to `REPOS`, and a site turns off `workers.dev` and
+ * preview URLs, to sit behind Cloudflare Access. It writes the folder
  * next to this one, installs, formats, runs `verify` and makes the first commit, so what it hands over
  * already passes.
  *
@@ -15,8 +18,8 @@
  *
  * `--push` also creates the repository on GitHub, pushes the first commit and runs
  * `pnpm protect` on it. That first push is the only one to `main` the standard allows, since the
- * rules aren't on yet. What's left is printed at the end: adding it to `REPOS`, and the Worker or
- * npm's setup, which have no API to do them from here.
+ * rules aren't on yet. What's left is printed at the end: adding it to `REPOS`, and the Worker,
+ * Access or npm's setup, which have no API to do them from here.
  */
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,7 +27,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { OWNER, latest } from "./survey.ts";
 
-export type Kind = "package" | "site";
+export type Kind = "package" | "site" | "tool";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file: string): string => readFileSync(join(here, file), "utf8");
@@ -80,6 +83,28 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
           ...ours("@cloudflare/vite-plugin", "@types/node", "cf", "vite-plus"),
+        },
+        ...shared,
+      },
+      null,
+      2,
+    );
+  }
+  if (kind === "tool") {
+    return JSON.stringify(
+      {
+        name,
+        private: true,
+        description,
+        type: "module",
+        scripts: {
+          ...scripts("check", "fix", "test"),
+          verify: "pnpm check && pnpm test",
+          ...scripts("prose"),
+        },
+        devDependencies: {
+          "@amitkaps/prose": npm("@amitkaps/prose"),
+          ...ours("@types/node", "vite-plus"),
         },
         ...shared,
       },
@@ -181,6 +206,28 @@ ${lint}
 });
 `;
   }
+  if (kind === "tool") {
+    return `/** @prose
+ * # The checks
+ *
+ * There's nothing to build or serve, so Vite+ is here for its checks and tests.
+ */
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  // oxfmt's defaults.
+  fmt: {},
+
+  // Type-aware lint that also type-checks, so \`pnpm check\` needs no separate \`tsc\`.
+${lint}
+
+  test: {
+    expect: { requireAssertions: true },
+    include: ["tests/**/*.test.ts"],
+  },
+});
+`;
+  }
   return `/** @prose
  * # The build
  *
@@ -226,9 +273,11 @@ function ci(kind: Kind): string {
     "# # CI",
     "#",
     "# Checks every pull request and every push to `main` with `pnpm run verify`.",
-    kind === "site"
-      ? "# Cloudflare runs the same script before each deploy, which its Git integration does."
-      : "# The release workflow runs the same script before it stages a version.",
+    {
+      site: "# Cloudflare runs the same script before each deploy, which its Git integration does.",
+      package: "# The release workflow runs the same script before it stages a version.",
+      tool: "# Nothing deploys or releases: the scripts run on a laptop.",
+    }[kind],
     "# The job is named `ci`, the check that branch protection requires.",
   ].join("\n");
   return `${header}\n${job}`;
@@ -261,12 +310,15 @@ ${install}
 ## Development
 
 \`\`\`sh
-pnpm install
-pnpm dev
+pnpm install${kind === "tool" ? "" : "\npnpm dev"}
 pnpm verify    # what CI runs
 \`\`\`
 
-Read [the docs](docs/README.md) for its design, plan and lessons. It follows [ship's standard](https://ship.amitkaps.com/docs/standard.md) for how it builds, checks and ${kind === "site" ? "deploys" : "releases"}.
+Read [the docs](docs/README.md) for its design, plan and lessons. It follows [ship's standard](https://ship.amitkaps.com/docs/standard.md) for how it ${
+    { site: "builds, checks and deploys", package: "builds, checks and releases", tool: "checks" }[
+      kind
+    ]
+  }.
 `;
 }
 
@@ -288,7 +340,11 @@ function docs(name: string, kind: Kind, description: string): Record<string, str
     [
       "development.md",
       "Development",
-      `build, test and ${kind === "site" ? "deploy" : "release"} it.`,
+      {
+        site: "build, test and deploy it.",
+        package: "build, test and release it.",
+        tool: "check and test it.",
+      }[kind],
     ],
   ];
   const files: Record<string, string> = {
@@ -338,15 +394,14 @@ What building ${name} taught, for whoever changes it next. Each lesson says what
 `,
     "docs/development.md": `# Development
 
-How ${name} is built and changed. What every repository shares, like the scripts, CI and ${
-      kind === "site" ? "deploys" : "releases"
+How ${name} is built and changed. What every repository shares, like the scripts${
+      { site: ", CI and deploys", package: ", CI and releases", tool: " and CI" }[kind]
     }, is in [ship's standard](${standard}), and isn't repeated here.
 
 ## Build and test
 
 \`\`\`sh
-pnpm install
-pnpm dev
+pnpm install${kind === "tool" ? "" : "\npnpm dev"}
 pnpm verify    # what CI runs
 \`\`\`
 `,
@@ -378,14 +433,21 @@ What an agent using ${name} should know, as a snippet to copy into its instructi
   return files;
 }
 
-function cloudflareConfig(name: string): string {
+function cloudflareConfig(name: string, internal: boolean): string {
   const today = new Date().toISOString().slice(0, 10);
+  const why = internal
+    ? `
+ *
+ * It's internal, so Cloudflare Access covers its domain, and \`workers.dev\` and preview URLs
+ * are off, since either would serve the same Worker without a login.`
+    : "";
+  const off = internal ? "\n    workersDev: false,\n    previewUrls: false," : "";
   return `/** @prose
  * # The Worker
  *
  * What Cloudflare runs: its name, compatibility date, domain and how it serves the files. Keep
  * the name equal to the Worker connected to this repository in the dashboard. The build and
- * deploy commands are set on the Worker, as ship's standard lists.
+ * deploy commands are set on the Worker, as ship's standard lists.${why}
  */
 import { defineConfig } from "cf/config";
 
@@ -393,7 +455,7 @@ export default defineConfig({
   worker: {
     name: "${name}",
     compatibilityDate: "${today}",
-    domains: ["${name}.amitkaps.com"],
+    domains: ["${name}.amitkaps.com"],${off}
   },
 });
 `;
@@ -440,6 +502,7 @@ export async function write(
   name: string,
   kind: Kind,
   description: string,
+  internal = false,
 ): Promise<void> {
   if (existsSync(dir)) throw new Error(`${dir} already exists`);
   const files: Record<string, string> = {
@@ -452,11 +515,12 @@ export async function write(
     "CLAUDE.md": "@AGENTS.md\n",
     "README.md": readme(name, kind, description),
     ".gitignore": read(".gitignore"),
-    LICENSE: read("LICENSE"),
+    // An internal repository isn't shared, so it has no licence to share it under.
+    ...(internal ? {} : { LICENSE: read("LICENSE") }),
     ...docs(name, kind, description),
   };
   if (kind === "site") {
-    files["cloudflare.config.ts"] = cloudflareConfig(name);
+    files["cloudflare.config.ts"] = cloudflareConfig(name, internal);
     files["index.html"] = page(name, description);
   } else {
     files["src/index.ts"] = entry(name, description);
@@ -483,21 +547,31 @@ if (import.meta.main) {
   };
   const description = value("--description");
   const push = flag("--push");
+  const internal = flag("--internal");
   const kind: Kind | undefined = flag("--package")
     ? "package"
     : flag("--site")
       ? "site"
-      : undefined;
+      : flag("--tool")
+        ? "tool"
+        : undefined;
   const [name] = args;
-  if (!name || !kind || !description || !/^[a-z][a-z0-9-]*$/.test(name)) {
+  // A package is published to npm, so it can't be internal.
+  if (
+    !name ||
+    !kind ||
+    !description ||
+    !/^[a-z][a-z0-9-]*$/.test(name) ||
+    (internal && kind === "package")
+  ) {
     console.error(
-      'Usage: pnpm new <name> --package|--site --description "What it is, in a sentence." [--push]',
+      'Usage: pnpm new <name> --package|--site|--tool --description "What it is, in a sentence." [--internal] [--push]\n--internal is for a site or a tool, since a package is public on npm.',
     );
     process.exit(1);
   }
 
   const dir = join(dirname(here), name);
-  await write(dir, name, kind, description);
+  await write(dir, name, kind, description, internal);
   const run = (command: string, ...a: string[]): void => {
     execFileSync(command, a, { cwd: dir, stdio: "inherit" });
   };
@@ -515,7 +589,7 @@ if (import.meta.main) {
       "repo",
       "create",
       `${OWNER}/${name}`,
-      "--public",
+      internal ? "--private" : "--public",
       "--source",
       ".",
       "--push",
@@ -529,14 +603,24 @@ if (import.meta.main) {
     ...(push
       ? []
       : [`Create ${OWNER}/${name} on GitHub, push main, then run pnpm protect ${name}.`]),
-    `Add "${name}" to REPOS in scripts/survey.ts, in a pull request here.`,
+    internal
+      ? `Leave it out of REPOS, since the home page is public. Check it with pnpm drift ../${name}.`
+      : `Add "${name}" to REPOS in scripts/survey.ts, in a pull request here.`,
     ...(kind === "site"
       ? [
-          `Connect the Worker "${name}" to the repository, with the build settings the standard lists, then check them with pnpm drift --cloudflare.`,
+          `Connect the Worker "${name}" to the repository, with the build settings the standard lists, then check them with pnpm drift --cloudflare${internal ? ` ../${name}` : ""}.`,
         ]
-      : [
+      : []),
+    ...(kind === "site" && internal
+      ? [
+          `Add an Access application for ${name}.amitkaps.com, with a policy that lets in only who it's for.`,
+        ]
+      : []),
+    ...(kind === "package"
+      ? [
           'Publish the first version by hand, then add the trusted publisher on npmjs.com, as the standard\'s "Setting up a new package" says.',
-        ]),
+        ]
+      : []),
   ];
   console.log(`\n✓ ${dir}\n\nStill to do:`);
   for (const step of left) console.log(`- ${step}`);
