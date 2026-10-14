@@ -172,8 +172,9 @@ const STRICT = [
 /** @prose
  * # The editor
  *
- * Every repository has the `.vscode/` settings Vite+ writes, as this one has them. They make the
- * editor format with oxc and run the repository's own `vp`, so a file saved in the editor is
+ * Every repository has the `.vscode/` settings Vite+ writes, and recommends oxc's and Vitest's
+ * extensions, as this one does. The settings make the editor format with oxc and run the
+ * repository's own `vp`, so a file saved in the editor is
  * formatted by the same oxfmt, with the same config, as `check`. A repository can add settings
  * of its own, like base's for Svelte, so only this one's are compared, each to the same value.
  */
@@ -653,7 +654,7 @@ export const CHECKS: Check[] = [
   {
     name: "Editor",
     group: "Setup",
-    rule: "the .vscode settings and extensions Vite+ writes, as ship has them",
+    rule: "the .vscode settings Vite+ writes, and the oxc and Vitest extensions, as ship has them",
     run: ({ files }) => {
       const drift = EDITOR.flatMap((file) => {
         const text = files[file];

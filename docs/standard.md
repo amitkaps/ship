@@ -34,7 +34,7 @@ The types come from `tsconfig.json`, and every one turns on the same strict opti
 
 ### The editor
 
-Every repository has the `.vscode/settings.json` and `.vscode/extensions.json` that Vite+ writes, as [this repository's](../.vscode/settings.json). They make oxc the formatter, on save, with its fixes, and recommend Vite+'s extension pack. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`. A repository can add settings of its own, like base's for Svelte.
+Every repository has the `.vscode/settings.json` that Vite+ writes, as [this repository's](../.vscode/settings.json), and a `.vscode/extensions.json`. The settings make oxc the formatter, on save, with its fixes. The extensions recommended are oxc's and Vitest's, by name, rather than Vite+'s extension pack, which only wraps the two and could add more without a change here. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`. A repository can add settings of its own, like base's for Svelte.
 
 Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a config path, overrides every repository's own, and the editor formats differently from `check`.
 
