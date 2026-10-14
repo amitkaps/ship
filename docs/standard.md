@@ -40,11 +40,11 @@ base, the SvelteKit starter, left Vite+ for the standalone tools. It goes back, 
 
 ```json
 "devEngines": {
-  "packageManager": { "name": "pnpm", "version": "12.9.1", "onFail": "download" },
+  "packageManager": { "name": "pnpm", "version": "12.13.0", "onFail": "download" },
   "runtime": { "name": "node", "version": ">=26", "onFail": "error" }
 },
 "engines": { "node": ">=26" },
-"packageManager": "pnpm@12.9.1"
+"packageManager": "pnpm@12.13.0"
 ```
 
 - **pnpm is pinned exactly, with `onFail: download`.** Whatever pnpm is installed globally, pnpm fetches and runs the pinned one, so a new pnpm release never breaks a checkout. CI reads `packageManager`, so keep the two equal.
