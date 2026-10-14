@@ -20,7 +20,9 @@
  * repositories, from disk. That's for one that follows the standard without being in `REPOS`, such
  * as a private repository, which the public home page shouldn't name. Its branch rules, labels and
  * holds aren't checked, since they belong to a listed repository. `--cloudflare` reads its Worker
- * from its own config, and `--github` takes the folder's name as the repository's.
+ * from its own config, and `--github` takes the folder's name as the repository's. For an
+ * internal site, `--cloudflare` also checks that an Access application with a policy covers its
+ * domain.
  *
  * With more than one Cloudflare account, `cf` can't pick one on its own, so `--cloudflare` stops
  * at once without `CLOUDFLARE_ACCOUNT_ID`, rather than partway through.
@@ -29,7 +31,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OWNER, checkFolder, folderWorker, nodeMajor, survey } from "./survey.ts";
+import { OWNER, type Worker, checkFolder, nodeMajor, survey } from "./survey.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cloudflare = process.argv.includes("--cloudflare");
@@ -109,11 +111,38 @@ function builds(name: string): string[] {
   return drift;
 }
 
+/** @prose
+ * # Access
+ *
+ * An internal site is private because an Access application covers its domain, and Access
+ * lets in only who its policies name. One with no policy lets nobody in, so it's drift too.
+ * Access is turned on once per account, in the Zero Trust dashboard, and until it is, the
+ * lookup fails and says so.
+ */
+function access(site: Worker): string[] {
+  if (!site.domain) return [`${site.name} has no domain for Access to cover`];
+  let apps: { policies?: unknown[] }[];
+  try {
+    apps = cf("zero-trust", "access", "applications", "list", "--domain", site.domain) as {
+      policies?: unknown[];
+    }[];
+  } catch (error) {
+    const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    return [`Access couldn't be read for ${site.domain}: ${reason}`];
+  }
+  if (!apps.length) return [`no Access application covers ${site.domain}`];
+  if (!apps.some((app) => app.policies?.length)) {
+    return [`the Access application for ${site.domain} has no policy`];
+  }
+  return [];
+}
+
 let drifted = false;
 for (const folder of folders) {
-  const drift = (await checkFolder(resolve(folder))).flatMap((f) => f.drift);
-  const site = folderWorker(resolve(folder));
+  const { findings, worker: site } = await checkFolder(resolve(folder));
+  const drift = findings.flatMap((f) => f.drift);
   if (cloudflare && site) drift.push(...builds(site.name));
+  if (cloudflare && site?.internal) drift.push(...access(site));
   if (github) drift.push(...merges(basename(resolve(folder))));
   drifted ||= drift.length > 0;
   console.log(drift.length ? `✗ ${folder}` : `✓ ${folder}`);

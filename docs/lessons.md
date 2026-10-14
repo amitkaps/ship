@@ -55,6 +55,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 ## New repositories
 
+- **A tool had to explain itself away.** A private repository of scripts, run on a laptop, has nothing to serve or build, so drift wanted a `dev` and a `build` it would never use, and its own docs said why it had none. A rule a repository has to argue against in its docs is the standard's gap, not the repository's. A tool is now a kind, with no `dev` or `build`, and `pnpm new --tool` starts one.
+
 - **A generator copies the standard, so it's tested against it.** `pnpm new` builds each file from ship's own, and `pnpm test` runs the survey and `verify` on what it writes. The first run found two things a template would have hidden. oxfmt keeps short arrays on one line where `JSON.stringify` doesn't, so the generator runs `fix` rather than copying oxfmt's rules. `vp pack` can't write a package's types without `typescript` installed, unless `isolatedDeclarations` is on, which also needs `declaration`. That's now how every package writes its types.
 - **`vp check` doesn't report what `isolatedDeclarations` needs.** Turned on in markz and sitez, the check passed, and `vp pack` failed on an export with no written type (TS9010). `verify` runs both, so it's caught either way.
 - **`isolatedDeclarations` in `tsconfig.json` reached files nobody publishes.** VS Code applied it to every file the tsconfig includes, so markz's `vite.config.ts` and tests showed 14 errors that `vp check` never reported. `dts: { generator: "oxc" }` in the pack block makes the same choice for only what's packed. markz's `dist/` came out byte for byte the same, and a missing type on an export still fails the pack.
@@ -62,6 +64,9 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **A package's first push would have run the release.** The push changes `package.json`, and the package isn't on npm yet, so staging would fail. The workflow now stops for a package npm doesn't have, since its first version is published by hand.
 
 ## Cloudflare
+
+- **An internal site leaks through `workers.dev`.** Access covers a domain, not a Worker, so a Worker with its `workers.dev` address or preview URLs on serves the same site to anyone who finds the address. cf's config has `workersDev` and `previewUrls`, so an internal site turns both off in its own file, and the survey checks them.
+- **`private` in `package.json` already meant something.** It means "not on npm", and ship and base are `private` with public sites. Reusing it for "internal" would have put ship behind a login. Whether a site is internal comes from the repository's visibility on GitHub, and its config, which can carry a comment, says so where it takes effect.
 
 - **The Git integration deploys whether or not GitHub CI passed.** The fix is a build command that runs the checks. `pnpm run verify` fails first, and nothing deploys.
 - **The build and deploy commands can't live in the repository.** `cloudflare.config.ts` has no field for them, as of cf 1.0.0-beta.14 and `@cloudflare/config` 0.24.1. So the dashboard holds two commands that never change, and `package.json` decides what they run.

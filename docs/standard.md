@@ -4,6 +4,16 @@ How every repository builds, checks and deploys. There's one way to do each thin
 
 The repositories are base, markz, prose, pagez, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
 
+## Kinds
+
+What a repository must have follows from three facts, each read from where it already lives, so none is declared twice.
+
+- **A package** is published to npm, and its `package.json` isn't `private`.
+- **A site** deploys to a Cloudflare Worker, and has a Worker config.
+- **A tool** is neither: scripts run on a laptop.
+
+A site or a tool is **internal** when its repository is private on GitHub. An internal site is still a site, deployed the same way, but behind Cloudflare Access, as [Internal sites](#internal-sites) says. A package can't be internal, since npm is public.
+
 ## Toolchain: Vite+
 
 One `vite.config.ts`, run through `vp`, covers dev, build, format, lint and test. A package builds with `vp pack`, which is part of Vite+, so there's no separate bundler. `defineConfig` comes from `vite-plus`.
@@ -82,7 +92,7 @@ Every repository uses these names, and runs them with `pnpm run …` in anything
 | `ship`    | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
 | `prose`   | reads the repository as a document: `prose`, so `pnpm prose build` works  |
 
-`dev`, `build`, `check`, `fix`, `verify` and `prose` are in every repository. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The home page lists every script side by side, so two repositories using one name for different jobs shows up.
+`check`, `fix`, `verify` and `prose` are in every repository, and `dev` and `build` in every site and package. A tool has nothing to serve or build, so its `verify` is `check` and `test`. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The home page lists every script side by side, so two repositories using one name for different jobs shows up.
 
 `verify` is what CI runs and what Cloudflare runs before each deploy, so the two can't disagree. `ship` never builds. Some names are pnpm's own commands, and a script by one of those names is skipped by `pnpm <name>`. Don't use `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack` for a script.
 
@@ -105,7 +115,26 @@ Build cache        on
 Previews           off
 ```
 
-`verify` fails on a failing check, so a merge that breaks one doesn't deploy. Previews stay off because CI already checks every pull request. If a repository turns them on, it sets the preview deploy command too: `pnpm exec wrangler versions upload`, or `pnpm exec cf workers versions create --prebuilt`.
+`verify` fails on a failing check, so a merge that breaks one doesn't deploy. Previews stay off because CI already checks every pull request. If a public repository turns them on, it sets the preview deploy command too: `pnpm exec wrangler versions upload`, or `pnpm exec cf workers versions create --prebuilt`.
+
+### Internal sites
+
+A private repository's site is internal. It deploys like any other site, and three things keep it private.
+
+- **Access covers its domain.** A Cloudflare Access application on the site's domain, with a policy that lets in only who it's for. Access is turned on once per account, in the Zero Trust dashboard.
+- **`workers.dev` is off.** Access covers the domain, not the Worker, so `<name>.<account>.workers.dev` would serve the same site without a login. The config sets `workersDev: false`.
+- **Preview URLs are off, always.** Each would be another address outside Access. The config sets `previewUrls: false`, and the Worker's previews stay off.
+
+```ts
+worker: {
+  name: "…",
+  domains: ["….amitkaps.com"],
+  workersDev: false,
+  previewUrls: false,
+},
+```
+
+The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without the rest. `--cloudflare` checks that an Access application with a policy covers the domain.
 
 ## GitHub
 
@@ -209,7 +238,7 @@ Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../script
 
 ### Following it unlisted
 
-A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm protect <repo>` still applies. Where it can't follow a rule, its own docs say which and why.
+A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm protect <repo>` still applies, and reads from GitHub whether it's private. Where it can't follow a rule, its own docs say which and why.
 
 ### Starting one
 
@@ -218,7 +247,10 @@ A private repository can follow the standard without joining `REPOS`, since the 
 ```sh
 pnpm new <name> --package --description "What it is, in a sentence." --push
 pnpm new <name> --site --description "What it is, in a sentence." --push
+pnpm new <name> --tool --internal --description "What it is, in a sentence." --push
 ```
+
+`--internal` makes a site or a tool private on GitHub and leaves it out of `REPOS`, and an internal site's config turns off `workers.dev` and preview URLs. The Access application is the step left to do by hand.
 
 It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and runs `pnpm protect`. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
 

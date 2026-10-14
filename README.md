@@ -16,8 +16,8 @@ pnpm drift --local  # the same, from the checkouts next to this one
 pnpm drift ../site  # one folder, listed or not
 pnpm protect      # apply the branch rules, merge settings and package labels on GitHub
 pnpm release sitez 0.5.0  # open the pull request that releases a package
-pnpm new <name> --package  # start a repository that follows the standard, or --site
-pnpm test         # generate a package and a site, and check them
+pnpm new <name> --package  # start a repository that follows the standard, or --site, --tool
+pnpm test         # generate each kind of repository, and check them
 ```
 
 ## What's here

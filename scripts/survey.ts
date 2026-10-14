@@ -14,7 +14,7 @@
  * before it's pushed.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
@@ -149,8 +149,9 @@ const STRICT = [
  * # The scripts
  *
  * Every repository uses the same names for the same jobs, so `pnpm verify` means one thing
- * everywhere. Most are required. `test` is there when a repository has tests, and `ship` when it
- * has a site. `preview` serves what `build` wrote, with `vp preview`, so it's a site's, and a
+ * everywhere. Most are required. `dev` and `build` are a site's or a package's, and a tool, which
+ * is private and has no site, has nothing to serve or build. `test` is there when a repository has
+ * tests, and `ship` when it has a site. `preview` serves what `build` wrote, with `vp preview`, so it's a site's, and a
  * package doesn't have one. On Vite+, `fix` is `vp check --fix` everywhere, and `check` runs `vp check`. A
  * framework may add its own steps around it, like SvelteKit's `svelte-kit sync` before and
  * `svelte-check` after, but never a second formatter or linter. A separate `lint` or `fmt`
@@ -174,7 +175,8 @@ export const SHARED = [
   "ship",
   "prose",
 ];
-const REQUIRED = ["dev", "build", "check", "fix", "verify", "prose"];
+const BUILT = ["dev", "build"];
+const REQUIRED = ["check", "fix", "verify", "prose"];
 const standardScripts = standard.scripts ?? {};
 const PNPM_COMMANDS = ["deploy", "publish", "audit", "ci", "pipeline", "pack"];
 
@@ -187,15 +189,32 @@ const PNPM_COMMANDS = ["deploy", "publish", "audit", "ci", "pipeline", "pack"];
  *
  * Its domain is read the same way, the first in `domains` or the first route's `pattern`, and
  * the page links to it under the repository's name.
+ *
+ * So is whether it turns off `workers.dev` and preview URLs, each on unless the config says
+ * otherwise. cf's config names them `workersDev` and `previewUrls`, and wrangler's `workers_dev`
+ * and `preview_urls`.
  */
-export type Worker = { file: string; name: string; domain?: string };
+export type Worker = {
+  file: string;
+  name: string;
+  domain?: string;
+  workersDev: boolean;
+  previewUrls: boolean;
+  // Set once the survey knows the site is internal.
+  internal?: boolean;
+};
+
+const off = (text: string, key: string): boolean =>
+  new RegExp(`"?${key}"?\\s*[:=]\\s*false`).test(text);
 
 function worker(files: Files): Worker | undefined {
   for (const file of ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"]) {
     const text = files[file] ?? "";
     const name = /^\s*"?name"?\s*[:=]\s*"([^"]+)"/m.exec(text)?.[1];
     const domain = /(?:domains"?\s*:\s*\[\s*|"?pattern"?\s*[:=]\s*)"([^"]+)"/.exec(text)?.[1];
-    if (name) return { file, name, domain };
+    const workersDev = !off(text, "workersDev") && !off(text, "workers_dev");
+    const previewUrls = !off(text, "previewUrls") && !off(text, "preview_urls");
+    if (name) return { file, name, domain, workersDev, previewUrls };
   }
   return undefined;
 }
@@ -289,6 +308,28 @@ function rulesDrift(found: Rule[]): string[] {
 }
 
 /** @prose
+ * # Internal sites
+ *
+ * A private repository's site is internal. It deploys like any other, behind Cloudflare Access,
+ * with `workers.dev` and preview URLs turned off, since Access covers only the domain and either
+ * would serve the same Worker without a login. Turning `workers.dev` off in the config is how
+ * the repository says so in its own files, so a folder that isn't on GitHub yet, or one read
+ * without a login, is held to the same rule. The listed repositories are public, since the home
+ * page names them, so only a folder is looked up on GitHub.
+ *
+ * GitHub answers 404 for a private repository it won't show, the same as for one that isn't
+ * there, so without a login the config is all there is to go on.
+ */
+type Visibility = "public" | "private" | Error | undefined;
+
+async function visibility(repo: string): Promise<Visibility> {
+  const found = (await github(repo)) as { private?: boolean } | Error;
+  if (!(found instanceof Error)) return found.private ? "private" : "public";
+  if (found instanceof RateLimit) return found;
+  return found.message.endsWith("HTTP 404") ? undefined : found;
+}
+
+/** @prose
  * # Packages
  *
  * A repository whose `package.json` isn't private is a package, published to npm. Every package
@@ -371,6 +412,7 @@ type Repo = {
   latest: Latest;
   // Left out for a folder that isn't on GitHub yet.
   rules?: Rule[] | Error;
+  visibility?: Visibility;
   labels?: string[] | Error;
 };
 
@@ -586,7 +628,10 @@ export const CHECKS: Check[] = [
     rule: "the shared names, and none of pnpm's own",
     run: ({ pkg, vitePlus: own, worker: site }) => {
       const scripts = pkg.scripts ?? {};
+      // A tool, private and with no site, has nothing to serve or build.
+      const tool = pkg.private && !site;
       const required = [
+        ...(tool ? [] : BUILT),
         ...REQUIRED,
         ...(site ? ["ship"] : []),
         ...(site && pkg.private ? ["preview"] : []),
@@ -642,6 +687,20 @@ export const CHECKS: Check[] = [
       if (!site || site.file === "cloudflare.config.ts") return undefined;
       const drift = site.file === "wrangler.toml" ? [] : [`${site.file}, not wrangler.toml`];
       return { value: site.file, drift };
+    },
+  },
+  {
+    name: "Internal",
+    group: "Setup",
+    rule: "a private repository's site turns off workers.dev and preview URLs, and sits behind Access",
+    run: ({ worker: site, visibility: seen }) => {
+      if (!site) return undefined;
+      if (seen instanceof Error && site.workersDev) return unread(seen);
+      if (seen !== "private" && site.workersDev) return undefined;
+      const drift: string[] = [];
+      if (site.workersDev) drift.push(`${site.file} doesn't turn off workers.dev`);
+      if (site.previewUrls) drift.push(`${site.file} doesn't turn off preview URLs`);
+      return { value: "internal", drift };
     },
   },
   {
@@ -816,14 +875,16 @@ export async function survey({ local = false } = {}): Promise<Result[]> {
 /** @prose
  * # A folder
  *
- * Checks a folder that isn't on GitHub yet, like one `pnpm new` just wrote. Its branch rules and
- * labels come with `pnpm protect`, so they aren't checked, and neither are holds, which belong to
- * a named repository.
+ * Checks a folder that isn't in `REPOS`, like one `pnpm new` just wrote or a private one. Its branch
+ * rules and labels come with `pnpm protect`, so they aren't checked, and neither are holds, which
+ * belong to a named repository. Whether it's private is read from GitHub, under the folder's name.
+ * Its Worker comes back too, marked internal when it is, for `pnpm drift --cloudflare <folder>`.
  */
-export async function checkFolder(dir: string): Promise<Finding[]> {
-  const it = repoOf(fromDisk(dir), await latest());
-  return CHECKS.flatMap((c) => c.run(it) ?? []);
+export async function checkFolder(dir: string): Promise<{ findings: Finding[]; worker?: Worker }> {
+  const [found, seen] = await Promise.all([latest(), visibility(basename(dir))]);
+  const it = repoOf(fromDisk(dir), found);
+  it.visibility = seen;
+  const findings = CHECKS.flatMap((c) => c.run(it) ?? []);
+  if (it.worker) it.worker.internal = seen === "private" || !it.worker.workersDev;
+  return { findings, worker: it.worker };
 }
-
-/** A folder's Worker, from its own config, for `pnpm drift --cloudflare <folder>`. */
-export const folderWorker = (dir: string): Worker | undefined => worker(fromDisk(dir));
