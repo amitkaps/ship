@@ -26,6 +26,8 @@ const FILES = [
   "pnpm-workspace.yaml",
   "tsconfig.json",
   "vite.config.ts",
+  ".vscode/settings.json",
+  ".vscode/extensions.json",
   "cloudflare.config.ts",
   "wrangler.jsonc",
   "wrangler.toml",
@@ -166,6 +168,19 @@ const STRICT = [
   "isolatedModules",
   "forceConsistentCasingInFileNames",
 ];
+
+/** @prose
+ * # The editor
+ *
+ * Every repository has the `.vscode/` settings Vite+ writes, as this one has them. They make the
+ * editor format with oxc and run the repository's own `vp`, so a file saved in the editor is
+ * formatted by the same oxfmt, with the same config, as `check`. A repository can add settings
+ * of its own, like base's for Svelte, so only this one's are compared, each to the same value.
+ */
+const EDITOR = [".vscode/settings.json", ".vscode/extensions.json"];
+const editor = Object.fromEntries(
+  EDITOR.map((file) => [file, JSON.parse(read(join(here, file))) as Record<string, unknown>]),
+);
 
 /** @prose
  * # The scripts
@@ -632,6 +647,35 @@ export const CHECKS: Check[] = [
       const drift: string[] = [];
       if (!/typeAware:\s*true/.test(vite)) drift.push("lint isn't type-aware");
       if (!/typeCheck:\s*true/.test(vite)) drift.push("lint doesn't type-check");
+      return { drift };
+    },
+  },
+  {
+    name: "Editor",
+    group: "Setup",
+    rule: "the .vscode settings and extensions Vite+ writes, as ship has them",
+    run: ({ files }) => {
+      const drift = EDITOR.flatMap((file) => {
+        const text = files[file];
+        if (!text) return [`no ${file}`];
+        let have: Record<string, unknown>;
+        try {
+          have = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          return [`${file} isn't plain JSON`];
+        }
+        const want = editor[file] ?? {};
+        // Recommendations are a list, and a repository can recommend more.
+        if (Array.isArray(want.recommendations)) {
+          const listed = Array.isArray(have.recommendations) ? have.recommendations : [];
+          return want.recommendations
+            .filter((name) => !listed.includes(name))
+            .map((name) => `${file} doesn't recommend ${String(name)}`);
+        }
+        return Object.keys(want)
+          .filter((key) => JSON.stringify(have[key]) !== JSON.stringify(want[key]))
+          .map((key) => `${file} doesn't set ${key} as ship does`);
+      });
       return { drift };
     },
   },

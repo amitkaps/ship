@@ -17,6 +17,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **Type-aware lint finds what the default lint misses.** Turning it on here flagged an `unknown` value in a template string in `drift.ts`. It needs no `typescript` dependency, since Vite+ installs tsgolint. With `typeCheck: true` it also reports compiler errors, like `TS2322`, so `check` replaces `tsc`.
 - **There's no `vp fix`.** `vp check --fix` writes the format and lint fixes, so `check` and `fix` are one command with and without a flag. `vp check` also runs the type check when `typeCheck` is on, so `vp lint && vp fmt --check` was doing the same job in two steps.
+- **The editor formatted with a different oxfmt from `check`.** VS Code's user settings pointed the oxc extension at mise's global oxfmt, and at a config file that no longer existed. The extension takes an explicit path first, so every repository formatted with that oxfmt, not its own, and the config path turned off each repository's `fmt` block. mise then couldn't prune the old oxfmt while the editor held it. Without those settings, the extension finds `vite-plus` and runs `vp fmt --lsp`, as it already ran `vp lint --lsp`. So there's no global oxfmt or oxlint to pin, and each repository commits the `.vscode/` settings Vite+ writes.
 - **With no `fmt` block, `vp fmt` prints "No config found, using defaults."** It still passes. An empty `fmt: {}` keeps the defaults and drops the notice.
 
 ## The survey
