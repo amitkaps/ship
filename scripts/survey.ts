@@ -105,10 +105,31 @@ const major = (version = ""): string | undefined => /\d+/.exec(version)?.[0];
  * and the tools that aren't ours yet are on their way out, like wrangler.
  *
  * A failed lookup shows in that row, rather than failing the survey.
+ *
+ * pnpm installs nothing published less than a day ago, so a release that new can't be installed
+ * yet, and a repository a version behind it hasn't drifted. The release is marked as waiting, and
+ * the check says so rather than reporting drift. Its date comes from npm's search, since the full
+ * record that holds every version's date runs to 29MB for wrangler. Our own packages skip the wait,
+ * so they never wait. When search can't say, the release isn't waiting, and drift shows as before.
  */
 const LATEST = ["typescript", "wrangler", "publint", "@amitkaps/prose", "@amitkaps/markz"];
+const WAIT = 24 * 60 * 60 * 1000;
 
-type Latest = Record<string, string | Error>;
+type Npm = { version: string; waiting: boolean };
+type Latest = Record<string, Npm | Error>;
+
+async function published(name: string, version: string): Promise<number | undefined> {
+  try {
+    const res = await fetch(`https://registry.npmjs.org/-/v1/search?text=${name}&size=5`);
+    const { objects } = (await res.json()) as {
+      objects: { package: { name: string; version: string; date: string } }[];
+    };
+    const found = objects.find((o) => o.package.name === name && o.package.version === version);
+    return found ? Date.parse(found.package.date) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function latest(): Promise<Latest> {
   const entries = await Promise.all(
@@ -117,7 +138,8 @@ export async function latest(): Promise<Latest> {
         const res = await fetch(`https://registry.npmjs.org/${name}/latest`);
         if (!res.ok) throw new Error(`npm returned HTTP ${res.status}`);
         const { version } = (await res.json()) as { version: string };
-        return [name, version];
+        const date = name.startsWith("@amitkaps/") ? undefined : await published(name, version);
+        return [name, { version, waiting: date !== undefined && Date.now() - date < WAIT }];
       } catch (error) {
         return [name, error instanceof Error ? error : new Error(String(error))];
       }
@@ -480,8 +502,17 @@ const toLatest = (name: string, rule: string): Check => ({
     const value = deps[name];
     if (!value) return undefined;
     const want = found[name];
+    if (!want) return { value, drift: [`${name} isn't one of the releases read from npm`] };
     if (want instanceof Error) return { value, drift: [`npm couldn't be read: ${want.message}`] };
-    return { value, drift: bare(value) === want ? [] : [`${name} is ${value}, not ${want}`] };
+    if (bare(value) === want.version) return { value, drift: [] };
+    if (want.waiting) {
+      return {
+        value,
+        drift: [],
+        unchecked: `${name} ${want.version} is under a day old, so pnpm waits`,
+      };
+    }
+    return { value, drift: [`${name} is ${value}, not ${want.version}`] };
   },
 });
 
