@@ -58,9 +58,10 @@ function block(text: string, pattern: RegExp): string {
 async function packageJson(name: string, kind: Kind, description: string): Promise<string> {
   const found = await latest();
   const npm = (tool: string): string => {
-    const version = found[tool];
-    if (version instanceof Error) throw version;
-    return `^${version}`;
+    const release = found[tool];
+    if (!release) throw new Error(`${tool} isn't one of the releases the survey reads`);
+    if (release instanceof Error) throw release;
+    return `^${release.version}`;
   };
   const ours = (...tools: string[]) =>
     Object.fromEntries(tools.map((tool) => [tool, ship.devDependencies[tool]]));

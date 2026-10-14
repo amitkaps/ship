@@ -54,7 +54,7 @@ base, the SvelteKit starter, left Vite+ for the standalone tools. It goes back, 
 
 ## Other versions
 
-The tools every repository shares are on one version. Where this repository uses a tool, its version is the standard. Where it doesn't, the standard is npm's latest release.
+The tools every repository shares are on one version. Where this repository uses a tool, its version is the standard. Where it doesn't, the standard is npm's latest release, once pnpm's one-day wait lets it install. Until then the check shows it as waiting, not as drift.
 
 | Tool                                 | Version                                                                       |
 | ------------------------------------ | ----------------------------------------------------------------------------- |
