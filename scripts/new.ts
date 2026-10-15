@@ -11,7 +11,7 @@
  *
  * Nothing here is a template. Each file is built from this repository's own: the versions,
  * engines and scripts from `package.json`, the strict options from `tsconfig.json`, the `lint`
- * block from `vite.config.ts`, the Vite+ override, CI, the shared sections of `AGENTS.md`, and a
+ * block from `vite.config.ts`, the Vite+ override, the editor settings, CI, the shared sections of `AGENTS.md`, and a
  * package's release files from `package/`. The docs are the outline the standard names. A tool this repository doesn't use, like publint, is
  * at npm's latest, as the survey wants. So a change to the standard reaches the next repository
  * with no second copy to update, and `pnpm test` checks what it writes against the survey.
@@ -516,6 +516,8 @@ export async function write(
     "CLAUDE.md": "@AGENTS.md\n",
     "README.md": readme(name, kind, description),
     ".gitignore": read(".gitignore"),
+    ".vscode/settings.json": read(".vscode/settings.json"),
+    ".vscode/extensions.json": read(".vscode/extensions.json"),
     // An internal repository isn't shared, so it has no licence to share it under.
     ...(internal ? {} : { LICENSE: read("LICENSE") }),
     ...docs(name, kind, description),
