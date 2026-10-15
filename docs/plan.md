@@ -8,7 +8,7 @@ Every repository serves its docs on its site, and ship's are at `ship.amitkaps.c
 
 ### Dependencies
 
-pnpm's one-day wait is on everywhere, with our own scope excluded. Versions and actions move from here, so Dependabot is gone. The home page links each repository's site and npm release.
+pnpm's one-day wait is on everywhere, with our own scope excluded. Versions and actions move from here, so Dependabot is gone. The dashboard links each repository's site and npm release.
 
 ### Releases and new repositories
 
@@ -16,22 +16,20 @@ Merging a version bump releases a package, with npm's 2FA approval the one step 
 
 ### The standard
 
-The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the home page check them.
+The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the dashboard check them. `pnpm drift` only reads, and `pnpm align` writes: a pull request for each repository's files, and their GitHub and Worker settings directly. Versions come from this repository, not from npm.
 
 ## Next, in order
 
-1. pagez is built, in the order [its plan](https://github.com/amitkaps/pagez/blob/main/docs/plan.md) lists: elementz and the head move in from sitez, then the compiler and its command.
-2. sitez renders its pages through pagez.
-3. pagez's first release, by hand, with npm's trusted publisher set up after.
+1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
+2. The static-site pattern in the standard. ship's own site is the first: `.prose` is Vite's `publicDir`, the Cloudflare plugin's `assetsOnly` hands it on, and `ship` runs `cf deploy --prebuilt`. Once its first deploy from `main` serves, the pattern goes in the standard with its check in `cloudflare.config.ts`, wrangler leaves the catalog, and its holds go. `pnpm align` carries it to each site.
+3. A SvelteKit app on cf, with `adapter-static`, written into the standard once it builds and deploys.
 
 ## Later
 
-- base moves to cf, when cf can deploy SvelteKit.
-- markz and prose move to cf, when cf's config takes an assets folder.
 - The beta packages move to their releases, when they graduate, as [development](development.md#beta-packages) lists.
 
 ## Open questions
 
-- **Pages that aren't the repository.** markz's quality page and ship's dashboard are built pages, not files in the commit. As things are, the quality page sits outside prose's frame with no bar, and ship renders its docs with markz beside a hand-written page. Either the page is hidden from the rest of the site, or each site grows a small generator of its own, without prose's styles or syntax highlighting, repeating what prose already does. prose has said it isn't a site generator, so the answer may be a way to hand prose a page, sitez publishing a package's site, or something else.
+- **Pages that aren't the repository.** ship's dashboard is now a doc with empty sections that a script fills after `prose build`, so it has prose's bar and styles. markz's quality page still sits outside prose's frame with no bar. It could become a doc the same way, or prose could take a page for a section, so the trick isn't needed.
 
 - Should a site's docs be checked for the same sections, or only for the files?

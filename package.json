@@ -4,19 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
+    "dev": "prose",
     "build": "vp build",
     "preview": "vp preview",
     "check": "vp check",
     "fix": "vp check --fix",
     "test": "vp test --run",
-    "verify": "pnpm check && pnpm test && pnpm build",
+    "verify": "pnpm check && pnpm test && pnpm prose build && pnpm dashboard && pnpm build",
     "ship": "cf deploy --prebuilt",
     "prose": "prose",
     "drift": "node scripts/drift.ts",
     "align": "node scripts/align.ts",
     "release": "node scripts/release.ts",
-    "new": "node scripts/new.ts"
+    "new": "node scripts/new.ts",
+    "dashboard": "node scripts/dashboard.ts"
   },
   "devDependencies": {
     "@amitkaps/markz": "^0.4.1",

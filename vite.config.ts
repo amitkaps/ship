@@ -1,79 +1,42 @@
 /** @prose
  * # The build
  *
- * One Vite+ config builds the two pages and hands them to Cloudflare. Vite+ also runs the
- * format and lint checks, so the only other tool config is `tsconfig.json`, for the types. The
- * Worker itself is described in [cloudflare.config.ts](cloudflare.config.ts), not here.
+ * One Vite+ config hands the site to Cloudflare. Vite+ also runs the format and lint checks, so
+ * the only other tool config is `tsconfig.json`, for the types. The Worker itself is described
+ * in [cloudflare.config.ts](cloudflare.config.ts), not here.
  *
  * `defineConfig` comes from `vite-plus`, not `vite`, so the `fmt` and `lint` blocks below
  * type-check too.
  */
 import { defineConfig } from "vite-plus";
 import { cloudflare } from "@cloudflare/vite-plugin";
-import { survey } from "./scripts/survey.ts";
-import { tables } from "./scripts/tables.ts";
-import { bar, pages } from "./scripts/docs.ts";
 
 /** @prose
- * # The commit in the footer
+ * # A site that's a folder
  *
- * Each page shows the commit it was built from, so a glance at the live site says whether the
- * last push deployed. Workers Builds sets `WORKERS_CI_COMMIT_SHA`, and a local build says `dev`.
+ * The site is the folder `prose build` writes, with the dashboard filled in by
+ * [scripts/dashboard.ts](scripts/dashboard.ts). Vite builds nothing of its own. It copies the
+ * folder as its `publicDir`, and the Cloudflare plugin hands it on. cf's config has no field for
+ * an assets folder, so this is how a folder reaches `cf deploy`.
+ *
+ * Vite won't build without an entry, so the build has an empty one, which the `folder` plugin
+ * drops from the output. Only the folder's files are deployed.
  */
-const commit = (process.env.WORKERS_CI_COMMIT_SHA ?? "dev").slice(0, 7);
+const ENTRY = "\0folder";
 
-/** @prose
- * # The tables on the home page
- *
- * The build surveys every repository and writes the result into `index.html`, so the live
- * site shows how far each one has drifted, as of its last deploy. A survey that can't reach
- * GitHub says so in the table rather than failing the build, since that would block a deploy
- * for a reason that has nothing to do with this repository.
- *
- * The survey runs once per build, or once per dev server, and only for a page that asks.
- */
-let drift: Promise<string> | undefined;
-const driftTables = () => (drift ??= survey().then((results) => tables(results, new Date())));
-
-/** @prose
- * # The docs
- *
- * [scripts/docs.ts](scripts/docs.ts) renders `docs/` with markz, and the build adds the pages
- * to what Cloudflare serves, beside the two pages Vite builds. The dev server renders them on
- * each request, so a doc reads as it's written. Every page, the home page too, opens with the
- * bar that links the docs.
- */
 export default defineConfig({
+  publicDir: ".prose",
   build: {
-    // Vite builds only index.html unless other pages are listed as inputs.
-    rollupOptions: {
-      input: ["index.html", "404.html"],
-    },
+    rollupOptions: { input: ENTRY },
   },
   plugins: [
     {
-      name: "commit",
-      transformIndexHtml: (html) => html.replaceAll("__COMMIT__", commit),
-    },
-    {
-      name: "drift",
-      transformIndexHtml: async (html) =>
-        html.includes("__DRIFT__") ? html.replace("__DRIFT__", await driftTables()) : html,
-    },
-    {
-      name: "docs",
-      transformIndexHtml: (html) => html.replace("__BAR__", bar()),
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          const page = pages(commit).find((p) => p.address === req.url?.split(/[?#]/)[0]);
-          if (!page) return next();
-          res.setHeader("content-type", "text/html; charset=utf-8");
-          res.end(page.html);
-        });
-      },
-      generateBundle() {
-        for (const { fileName, html } of pages(commit)) {
-          this.emitFile({ type: "asset", fileName, source: html });
+      name: "folder",
+      resolveId: (id) => (id === ENTRY ? ENTRY : undefined),
+      load: (id) => (id === ENTRY ? "" : undefined),
+      generateBundle(_, bundle) {
+        for (const [name, file] of Object.entries(bundle)) {
+          if (file.type === "chunk" && file.facadeModuleId === ENTRY) delete bundle[name];
         }
       },
     },
@@ -82,7 +45,7 @@ export default defineConfig({
      *
      * `assetsOnly` makes the plugin write an assets-only Build Output into
      * `.cloudflare/output/`, which `cf deploy --prebuilt` uploads as it is. There's no Worker
-     * code: Cloudflare serves the files, and the 404 page for a missing address.
+     * code: Cloudflare serves the files, and prose's 404 page for a missing address.
      */
     cloudflare({ assetsOnly: true }),
   ],

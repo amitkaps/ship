@@ -19,6 +19,5 @@ Explanations go in `@prose` comments, written to the rules in [prose's usage](ht
 
 - A change to how things are done is a change to the standard. Make it here first, in the config, in `docs/standard.md` and, when it's checkable, in `scripts/survey.ts`. Then `pnpm drift` lists the repositories to bring in line.
 - What a change taught goes in `docs/lessons.md`, in the same change. Say what happened and what to do about it.
-- The `.html` pages carry no prose, since their comments ship to the browser.
 - Don't name a script after a pnpm command (`deploy`, `publish`, `audit`, `ci`, `pipeline`, `pack`).
 - Never name a private repository, here or on GitHub: not in the docs, code, commits or pull requests. This repository and its site are public. Say "a private repository" and describe what it is instead.
