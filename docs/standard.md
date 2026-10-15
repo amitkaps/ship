@@ -1,6 +1,6 @@
 # The standard
 
-How every repository builds, checks and deploys. There's one way to do each thing, and this repository is the working example of it. `pnpm drift` checks the others against it and lists where each has drifted, and the home page at ship.amitkaps.com shows the same as tables.
+How every repository builds, checks and deploys. There's one way to do each thing, and this repository is the working example of it. `pnpm drift` checks the others against it and lists where each has drifted, `pnpm align` brings them back in line, and the home page at ship.amitkaps.com shows the same as tables.
 
 The repositories are base, markz, prose, pagez, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
 
@@ -34,7 +34,7 @@ The types come from `tsconfig.json`, and every one turns on the same strict opti
 
 ### The editor
 
-Every repository has the `.vscode/settings.json` that Vite+ writes, as [this repository's](../.vscode/settings.json), and a `.vscode/extensions.json`. The settings make oxc the formatter, on save, with its fixes. The extensions recommended are oxc's and Vitest's, by name, rather than Vite+'s extension pack, which only wraps the two and could add more without a change here. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`. A repository can add settings of its own, like base's for Svelte.
+Every repository has the `.vscode/settings.json` that Vite+ writes, as [this repository's](../.vscode/settings.json), and a `.vscode/extensions.json`. The check reports each file as one line when it differs, since `pnpm align` copies this repository's settings in whole. The settings make oxc the formatter, on save, with its fixes. The extensions recommended are oxc's and Vitest's, by name, rather than Vite+'s extension pack, which only wraps the two and could add more without a change here. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`. A repository can add settings of its own, like base's for Svelte.
 
 Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a config path, overrides every repository's own, and the editor formats differently from `check`.
 
@@ -60,19 +60,19 @@ base, the SvelteKit starter, left Vite+ for the standalone tools. It goes back, 
 
 ## Other versions
 
-The tools every repository shares are on one version. Where this repository uses a tool, its version is the standard. Where it doesn't, the standard is npm's latest release, once pnpm's one-day wait lets it install. Until then the check shows it as waiting, not as drift.
+The tools every repository shares are on one version, written the same way, so moving one never leaves two repositories to reconcile. Where this repository uses a tool, its `package.json` has the version. Where it doesn't, the `catalog` in its `pnpm-workspace.yaml` does, which nothing here installs. npm isn't read: a new release is drift only once this repository moves to it, and `pnpm align` moves it, past pnpm's one-day wait.
 
-| Tool                                 | Version                                                                       |
-| ------------------------------------ | ----------------------------------------------------------------------------- |
-| `@types/node`                        | the major of the Node that `engines` allows, so code can't use newer APIs     |
-| `vite-plus`                          | this repository's, with the override at the same version and no direct `vite` |
-| `cf`, `@cloudflare/vite-plugin`      | this repository's, in any repository that deploys with cf                     |
-| `typescript`                         | npm's latest, where a repository has it                                       |
-| `@amitkaps/prose`, `@amitkaps/markz` | npm's latest, so a new release of ours shows up everywhere it's used          |
-| `wrangler`                           | npm's latest, while a repository is still on it                               |
-| `publint`                            | npm's latest, in every package                                                |
+| Tool                                 | Version                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `@types/node`                        | the major of the Node that `engines` allows, so code can't use newer APIs |
+| `vite-plus`                          | with the override at the same version and no direct `vite`                |
+| `cf`, `@cloudflare/vite-plugin`      | in any repository that deploys with cf, pinned by hand while they're beta |
+| `@amitkaps/prose`, `@amitkaps/markz` | where a repository uses them                                              |
+| `typescript`                         | from the catalog, where a repository has it                               |
+| `wrangler`                           | from the catalog, while a repository is still on it                       |
+| `publint`                            | from the catalog, in every package                                        |
 
-A repository's own libraries, like svelte or micromark, are its own to choose.
+A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 
 ## Held
 
@@ -110,7 +110,7 @@ A repository with a site deploys it to a Cloudflare Worker with static assets.
 
 - **Config:** `cloudflare.config.ts`, cf's typed config, is the target. A repository that cf can't deploy yet keeps `wrangler.toml`, never `wrangler.jsonc`, since prose reads comments in TOML but not in JSONC. Either way, the file holds the Worker's name, compatibility date, domain and asset handling.
 - **Deploys:** the Worker's Git integration (Workers Builds) builds and deploys `main`. There's no deploy step in GitHub Actions, and no API token or secret.
-- **The Worker's settings** are the same on every Worker. Cloudflare's config has no field for them, so they're set in the dashboard, or with `cf builds triggers update`, and `pnpm drift --cloudflare` checks them.
+- **The Worker's settings** are the same on every Worker. Cloudflare's config has no field for them, so `pnpm align` writes them with `cf`, and `pnpm drift` checks them when `cf` is logged in. Only connecting the Worker to its repository is left to the dashboard.
 
 ```text
 Build command      pnpm run verify
@@ -140,7 +140,7 @@ worker: {
 },
 ```
 
-The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without the rest. `--cloudflare` checks that an Access application with a policy covers the domain.
+The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without the rest. With `cf` logged in, it also checks that an Access application with a policy covers the domain.
 
 ## GitHub
 
@@ -150,7 +150,7 @@ Every `main` takes changes the same way. Work happens on a branch, in a pull req
 - **Actions:** every workflow uses the actions at the versions this repository's do. A repository can add steps of its own, but the versions move here first, like every other version, so there's no Dependabot.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 
-`pnpm protect` applies both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. `pnpm drift --github` checks the merge settings too, which only the owner can read.
+`pnpm align` writes both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. With that login, it checks the merge settings too, which only the owner can read.
 
 ## Agents
 
@@ -200,7 +200,7 @@ You approve the staged version with 2FA, in the **Staged Packages** tab on npmjs
 
 ### Release notes
 
-There's no changelog file. Each pull request carries one label, which files it under a heading in the notes. `pnpm protect` creates the labels, from [.github/labels.json](../.github/labels.json).
+There's no changelog file. Each pull request carries one label, which files it under a heading in the notes. `pnpm align` creates the labels, from [.github/labels.json](../.github/labels.json).
 
 | Label      | Heading            | For                                            |
 | ---------- | ------------------ | ---------------------------------------------- |
@@ -215,7 +215,7 @@ A pull request's title is its line in the notes, so a user-facing one is written
 
 ### Setting up a new package
 
-`pnpm new` copies in `package/`'s files, and `pnpm protect <repo>` makes the labels. A package that isn't on npm yet doesn't release on a merge, since npm trusts the workflow only once the package exists. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
+`pnpm new` copies in `package/`'s files, and `pnpm align <repo>` makes the labels. A package that isn't on npm yet doesn't release on a merge, since npm trusts the workflow only once the package exists. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
 
 ```sh
 pnpm pack && cd /tmp && npm login && npm publish ~/code/<repo>/amitkaps-<repo>-<version>.tgz --access public
@@ -239,12 +239,21 @@ Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../script
 
 1. Add it to `REPOS`, in a pull request here. `pnpm drift` then lists everything it's missing.
 2. Fix what drift lists, in the repository's own pull requests. Where a tool can't meet the standard yet, add a hold rather than a workaround.
-3. Run `pnpm protect <repo>`, for the branch rules, the merge settings and a package's labels.
-4. Set up what drift can't reach. A site's Worker gets the build settings above, which `pnpm drift --cloudflare` checks. A package gets its trusted publisher on npm.
+3. Connect a site's Worker to the repository, in the dashboard.
+4. Run `pnpm align <repo>`, for the branch rules, the merge settings, a package's labels and the Worker's build settings. A package still needs its trusted publisher on npm.
+
+### Keeping them in line
+
+`pnpm drift` reads and `pnpm align` writes, each for every repository or the ones named.
+
+- **drift** checks every repository's files, from GitHub's `main`, or from a folder named on the command line, to see a fix before it's pushed. With `gh` logged in it checks the merge settings too, and with `cf` the Workers' build settings, and without a login it says what it couldn't check.
+- **align** moves this repository first: its libraries and tools, the Vite+ override and the catalog, each within its major version. Then it aligns the others with that, from a fresh clone of each `main`. Every shared tool, the override and the editor settings come from here, and each repository's own libraries move within their majors. A pull request opens where `verify` passes, with auto-merge on, and lists any new major left for review. GitHub's settings and the Worker's are written directly, since there's no file to review.
+
+A change to the standard itself, like a new check, is a pull request here, and the next `pnpm align` carries it.
 
 ### Following it unlisted
 
-A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm protect <repo>` still applies, and reads from GitHub whether it's private. Where it can't follow a rule, its own docs say which and why.
+A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm align <repo>` still writes, and reads from GitHub whether it's private. Where it can't follow a rule, its own docs say which and why.
 
 ### Starting one
 
@@ -258,6 +267,6 @@ pnpm new <name> --tool --internal --description "What it is, in a sentence." --p
 
 `--internal` makes a site or a tool private on GitHub and leaves it out of `REPOS`, and an internal site's config turns off `workers.dev` and preview URLs. The Access application is the step left to do by hand.
 
-It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and runs `pnpm protect`. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
+It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and writes its GitHub settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
 
 `pnpm test` here generates a package and a site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.

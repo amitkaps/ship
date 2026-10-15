@@ -25,4 +25,4 @@ Two packages are still beta. Check them with `pnpm view <name> dist-tags`.
 | `@cloudflare/vite-plugin` | `2.0.0-beta.sha-67fa336fd` | `beta` tag only; `latest` is 1.64.0 | `latest` is a 2.x release      |
 | `cf`                      | `1.0.0-beta.17`            | `latest` is the beta                | `latest` is a non-beta release |
 
-When a package graduates, update the pins in `package.json` and the table above. Then run `pnpm run verify` and a deploy from the Git-connected Worker before you rely on it.
+`pnpm align` leaves both alone, since their tags don't say which build goes with which. When a package graduates, update the pins in `package.json` and the table above. Then run `pnpm run verify` and a deploy from the Git-connected Worker before you rely on it.

@@ -14,7 +14,7 @@
     "ship": "cf deploy --prebuilt",
     "prose": "prose",
     "drift": "node scripts/drift.ts",
-    "protect": "node scripts/protect.ts",
+    "align": "node scripts/align.ts",
     "release": "node scripts/release.ts",
     "new": "node scripts/new.ts"
   },

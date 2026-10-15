@@ -11,10 +11,9 @@ pnpm dev          # local dev server
 pnpm verify       # check, test and build: what CI and every deploy run
 pnpm ship         # upload the last build (normally left to the Git integration)
 pnpm prose        # read the repository as a document
-pnpm drift        # check every repository against the standard, as of GitHub's main
-pnpm drift --local  # the same, from the checkouts next to this one
-pnpm drift ../site  # one folder, listed or not
-pnpm protect      # apply the branch rules, merge settings and package labels on GitHub
+pnpm drift        # check every repository against the standard, and its GitHub and Worker settings
+pnpm drift ../site  # one folder from disk, listed or not
+pnpm align        # bring every repository in line: a pull request each, and their settings
 pnpm release sitez 0.5.0  # open the pull request that releases a package
 pnpm new <name> --package  # start a repository that follows the standard, or --site, --tool
 pnpm test         # generate each kind of repository, and check them

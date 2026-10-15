@@ -10,8 +10,8 @@
  * The other repositories are read from GitHub, from `main`, so a check run on a laptop and the
  * one Cloudflare runs at build time see the same thing. Cloudflare's build clones only this
  * repository, so the sibling folders on disk aren't there. This repository is read from disk,
- * since that's the commit being built. `local` reads the siblings from disk too, to check a fix
- * before it's pushed.
+ * since that's the commit being built. To check a fix before it's pushed, `pnpm drift` takes the
+ * folder instead ([A folder](#a-folder)).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -94,61 +94,39 @@ const vitePlus = standardDeps["vite-plus"];
 const node = standard.devEngines?.runtime;
 export const nodeMajor = /\d+/.exec(standard.engines?.node ?? "")?.[0];
 
-// `^7.0.2` and `7.0.2` name the same release here, so a range is compared by its version.
-const bare = (version: string): string => version.replace(/^[\^~>=<\s]+/, "");
-const major = (version = ""): string | undefined => /\d+/.exec(version)?.[0];
-
 /** @prose
- * # The latest releases
+ * # The shared versions
  *
- * Some tools have no version in this repository to copy, since it doesn't use them. A
- * repository that does should be on the latest release, read from npm when the survey runs.
- * That covers our own packages, so a new prose or markz shows up as drift everywhere it's used,
- * and the tools that aren't ours yet are on their way out, like wrangler.
- *
- * A failed lookup shows in that row, rather than failing the survey.
- *
- * pnpm installs nothing published less than a day ago, so a release that new can't be installed
- * yet, and a repository a version behind it hasn't drifted. The release is marked as waiting, and
- * the check says so rather than reporting drift. Its date comes from npm's search, since the full
- * record that holds every version's date runs to 29MB for wrangler. Our own packages skip the wait,
- * so they never wait. When search can't say, the release isn't waiting, and drift shows as before.
+ * Every repository that uses one of these tools is on the version this repository names, written
+ * the same way, so moving one never leaves two repositories to reconcile. Most come from this
+ * repository's own `package.json`. The ones it doesn't use, like wrangler, are named in the
+ * `catalog` of its `pnpm-workspace.yaml`, which nothing here installs. npm isn't read: a new
+ * release is drift only once this repository moves to it, which `pnpm align` does.
  */
-const LATEST = ["typescript", "wrangler", "publint", "@amitkaps/prose", "@amitkaps/markz"];
-const WAIT = 24 * 60 * 60 * 1000;
+export const TOOLS = [
+  "@types/node",
+  "typescript",
+  "@amitkaps/prose",
+  "@amitkaps/markz",
+  "cf",
+  "@cloudflare/vite-plugin",
+  "wrangler",
+  "publint",
+];
 
-type Npm = { version: string; waiting: boolean };
-type Latest = Record<string, Npm | Error>;
-
-async function published(name: string, version: string): Promise<number | undefined> {
-  try {
-    const res = await fetch(`https://registry.npmjs.org/-/v1/search?text=${name}&size=5`);
-    const { objects } = (await res.json()) as {
-      objects: { package: { name: string; version: string; date: string } }[];
-    };
-    const found = objects.find((o) => o.package.name === name && o.package.version === version);
-    return found ? Date.parse(found.package.date) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export async function latest(): Promise<Latest> {
-  const entries = await Promise.all(
-    LATEST.map(async (name) => {
-      try {
-        const res = await fetch(`https://registry.npmjs.org/${name}/latest`);
-        if (!res.ok) throw new Error(`npm returned HTTP ${res.status}`);
-        const { version } = (await res.json()) as { version: string };
-        const date = name.startsWith("@amitkaps/") ? undefined : await published(name, version);
-        return [name, { version, waiting: date !== undefined && Date.now() - date < WAIT }];
-      } catch (error) {
-        return [name, error instanceof Error ? error : new Error(String(error))];
-      }
-    }),
+// `name: version` lines under `catalog:`, quoted or not. A regular expression is enough, since
+// the block is flat.
+export function catalog(workspace: string): Record<string, string> {
+  const block = /^catalog:\n((?:[ \t]+.*\n?)*)/m.exec(workspace)?.[1] ?? "";
+  return Object.fromEntries(
+    [...block.matchAll(/^\s+"?([^":\s]+)"?:\s*"?([^"\s]+)"?/gm)].map((m) => [m[1], m[2]]),
   );
-  return Object.fromEntries(entries);
 }
+
+export const VERSIONS: Record<string, string | undefined> = {
+  ...catalog(read(join(here, "pnpm-workspace.yaml"))),
+  ...standardDeps,
+};
 
 /** @prose
  * # The type checks
@@ -245,7 +223,7 @@ export type Worker = {
 const off = (text: string, key: string): boolean =>
   new RegExp(`"?${key}"?\\s*[:=]\\s*false`).test(text);
 
-function worker(files: Files): Worker | undefined {
+export function worker(files: Files): Worker | undefined {
   for (const file of ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"]) {
     const text = files[file] ?? "";
     const name = /^\s*"?name"?\s*[:=]\s*"([^"]+)"/m.exec(text)?.[1];
@@ -281,7 +259,7 @@ async function release(name: string): Promise<Release> {
  * # Branch rules
  *
  * Every repository protects `main` with the same ruleset, kept in
- * [.github/ruleset.json](../.github/ruleset.json) and applied by `pnpm protect`. GitHub shows a
+ * [.github/ruleset.json](../.github/ruleset.json) and applied by `pnpm align`. GitHub shows a
  * public repository's branch rules to anyone, so the survey reads them without a login. A
  * `GITHUB_TOKEN`, when set, only raises the rate limit.
  *
@@ -447,7 +425,6 @@ type Repo = {
   deps: Record<string, string>;
   vitePlus?: string;
   worker?: Worker;
-  latest: Latest;
   // Left out for a folder that isn't on GitHub yet.
   rules?: Rule[] | Error;
   visibility?: Visibility;
@@ -482,7 +459,7 @@ export type Finding = { value?: string; drift: string[]; held?: string; unchecke
 const PROSE_SITE =
   "cf deploys only a Vite build, and this site is written by prose build. Move when cf's config takes an assets folder.";
 
-const HELD: Record<string, Record<string, string>> = {
+export const HELD: Record<string, Record<string, string>> = {
   markz: { Cloudflare: PROSE_SITE },
   prose: { Cloudflare: PROSE_SITE },
   sitez: { Cloudflare: PROSE_SITE },
@@ -509,38 +486,15 @@ export type Check = {
   run: (repo: Repo) => Finding | undefined;
 };
 
-// A tool that should match npm's latest release, where a repository uses it.
-const toLatest = (name: string, rule: string): Check => ({
+// A shared tool, where a repository uses it, written as this repository writes it.
+const toOurs = (name: string, rule = "ship's, where a repository has it"): Check => ({
   name,
   group: "Versions",
-  rule,
-  run: ({ deps, latest: found }) => {
-    const value = deps[name];
-    if (!value) return undefined;
-    const want = found[name];
-    if (!want) return { value, drift: [`${name} isn't one of the releases read from npm`] };
-    if (want instanceof Error) return { value, drift: [`npm couldn't be read: ${want.message}`] };
-    if (bare(value) === want.version) return { value, drift: [] };
-    if (want.waiting) {
-      return {
-        value,
-        drift: [],
-        unchecked: `${name} ${want.version} is under a day old, so pnpm waits`,
-      };
-    }
-    return { value, drift: [`${name} is ${value}, not ${want.version}`] };
-  },
-});
-
-// A tool that should match this repository's version, where another repository uses it.
-const toOurs = (name: string): Check => ({
-  name,
-  group: "Versions",
-  rule: `${standardDeps[name]}, where a repository deploys with cf`,
+  rule: `${VERSIONS[name]}: ${rule}`,
   run: ({ deps }) => {
     const value = deps[name];
     if (!value) return undefined;
-    const want = standardDeps[name];
+    const want = VERSIONS[name];
     return { value, drift: value === want ? [] : [`${name} is ${value}, not ${want}`] };
   },
 });
@@ -566,21 +520,7 @@ export const CHECKS: Check[] = [
       return { value: runtime?.version, drift };
     },
   },
-  {
-    name: "@types/node",
-    group: "Versions",
-    rule: "the major version of the Node that engines allows",
-    run: ({ pkg, deps }) => {
-      const value = deps["@types/node"];
-      if (!value) return undefined;
-      const oldest = major(pkg.engines?.node ?? pkg.devEngines?.runtime?.version);
-      const drift =
-        major(value) === oldest
-          ? []
-          : [`@types/node is ${value}, but engines allows Node ${oldest}`];
-      return { value, drift };
-    },
-  },
+  toOurs("@types/node", "the major of the Node that engines allows, as ship has it"),
   {
     name: "pnpm",
     group: "Versions",
@@ -617,13 +557,13 @@ export const CHECKS: Check[] = [
       return { value: own, drift };
     },
   },
-  toLatest("typescript", "npm's latest, where a repository has it"),
-  toLatest("@amitkaps/prose", "npm's latest, where a repository uses it"),
-  toLatest("@amitkaps/markz", "npm's latest, where a repository uses it"),
-  toOurs("cf"),
-  toOurs("@cloudflare/vite-plugin"),
-  toLatest("wrangler", "npm's latest, while a repository is still on it"),
-  toLatest("publint", "npm's latest, in every package"),
+  toOurs("typescript"),
+  toOurs("@amitkaps/prose"),
+  toOurs("@amitkaps/markz"),
+  toOurs("cf", "ship's, where a repository deploys with cf"),
+  toOurs("@cloudflare/vite-plugin", "ship's, where a repository deploys with cf"),
+  toOurs("wrangler", "ship's, while a repository is still on it"),
+  toOurs("publint", "ship's, in every package"),
   {
     name: "Types",
     group: "Setup",
@@ -666,16 +606,16 @@ export const CHECKS: Check[] = [
           return [`${file} isn't plain JSON`];
         }
         const want = editor[file] ?? {};
-        // Recommendations are a list, and a repository can recommend more.
-        if (Array.isArray(want.recommendations)) {
-          const listed = Array.isArray(have.recommendations) ? have.recommendations : [];
-          return want.recommendations
-            .filter((name) => !listed.includes(name))
-            .map((name) => `${file} doesn't recommend ${String(name)}`);
-        }
-        return Object.keys(want)
-          .filter((key) => JSON.stringify(have[key]) !== JSON.stringify(want[key]))
-          .map((key) => `${file} doesn't set ${key} as ship does`);
+        // A repository can add settings and recommendations of its own, so only ship's are
+        // compared. One line says the file differs, since align copies ship's in whole.
+        const same = Array.isArray(want.recommendations)
+          ? want.recommendations.every(
+              (name) => Array.isArray(have.recommendations) && have.recommendations.includes(name),
+            )
+          : Object.keys(want).every(
+              (key) => JSON.stringify(have[key]) === JSON.stringify(want[key]),
+            );
+        return same ? [] : [`${file} differs from ship's`];
       });
       return { drift };
     },
@@ -914,23 +854,22 @@ export type Result = {
   release?: Release;
 };
 
-function repoOf(files: Files, found: Latest): Repo {
+function repoOf(files: Files): Repo {
   const pkg = JSON.parse(files["package.json"] ?? "{}") as Pkg;
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  return { pkg, files, deps, vitePlus: deps["vite-plus"], worker: worker(files), latest: found };
+  return { pkg, files, deps, vitePlus: deps["vite-plus"], worker: worker(files) };
 }
 
-async function check(repo: string, local: boolean, found: Latest): Promise<Result> {
+async function check(repo: string): Promise<Result> {
   const rules = branchRules(repo);
   let files: Files;
   try {
-    const dir = repo === SELF ? here : join(dirname(here), repo);
-    files = repo === SELF || local ? fromDisk(dir) : await fromGitHub(repo);
+    files = repo === SELF ? fromDisk(here) : await fromGitHub(repo);
   } catch (error) {
     return { repo, error: `couldn't be read: ${String(error)}`, findings: [], scripts: {} };
   }
   if (!files["package.json"]) return { repo, error: "no package.json", findings: [], scripts: {} };
-  const it = repoOf(files, found);
+  const it = repoOf(files);
   const published = it.pkg.private || !it.pkg.name ? undefined : release(it.pkg.name);
   it.rules = await rules;
   if (!it.pkg.private) it.labels = await repoLabels(repo);
@@ -943,24 +882,26 @@ async function check(repo: string, local: boolean, found: Latest): Promise<Resul
   };
 }
 
-export async function survey({ local = false } = {}): Promise<Result[]> {
-  const found = await latest();
-  return Promise.all(REPOS.map((repo) => check(repo, local, found)));
+export async function survey(): Promise<Result[]> {
+  return Promise.all(REPOS.map((repo) => check(repo)));
 }
 
 /** @prose
  * # A folder
  *
- * Checks a folder that isn't in `REPOS`, like one `pnpm new` just wrote or a private one. Its branch
- * rules and labels come with `pnpm protect`, so they aren't checked, and neither are holds, which
- * belong to a named repository. Whether it's private is read from GitHub, under the folder's name.
- * Its Worker comes back too, marked internal when it is, for `pnpm drift --cloudflare <folder>`.
+ * Checks a folder from disk: a checkout of a listed repository, to see a fix before it's pushed,
+ * or one that isn't in `REPOS`, like one `pnpm new` just wrote or a private one. A listed
+ * repository's holds apply, found by the folder's name. Branch rules and labels aren't read,
+ * since `pnpm align` writes them and `pnpm drift` reads them from GitHub. Whether it's private is
+ * read from GitHub, under the folder's name. Its Worker comes back too, marked internal when it
+ * is, so `pnpm drift <folder>` can check its settings.
  */
 export async function checkFolder(dir: string): Promise<{ findings: Finding[]; worker?: Worker }> {
-  const [found, seen] = await Promise.all([latest(), visibility(basename(dir))]);
-  const it = repoOf(fromDisk(dir), found);
-  it.visibility = seen;
-  const findings = CHECKS.flatMap((c) => c.run(it) ?? []);
+  const repo = basename(dir);
+  const it = repoOf(fromDisk(dir));
+  it.visibility = await visibility(repo);
+  const seen = it.visibility;
+  const findings = CHECKS.flatMap((c) => hold(repo, c, c.run(it)) ?? []);
   if (it.worker) it.worker.internal = seen === "private" || !it.worker.workersDev;
   return { findings, worker: it.worker };
 }

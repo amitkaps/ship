@@ -13,11 +13,11 @@
  * engines and scripts from `package.json`, the strict options from `tsconfig.json`, the `lint`
  * block from `vite.config.ts`, the Vite+ override, the editor settings, CI, the shared sections of `AGENTS.md`, and a
  * package's release files from `package/`. The docs are the outline the standard names. A tool this repository doesn't use, like publint, is
- * at npm's latest, as the survey wants. So a change to the standard reaches the next repository
+ * at the version in its `catalog`, as the survey wants. So a change to the standard reaches the next repository
  * with no second copy to update, and `pnpm test` checks what it writes against the survey.
  *
- * `--push` also creates the repository on GitHub, pushes the first commit and runs
- * `pnpm protect` on it. That first push is the only one to `main` the standard allows, since the
+ * `--push` also creates the repository on GitHub, pushes the first commit and writes its GitHub
+ * settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the
  * rules aren't on yet. What's left is printed at the end: adding it to `REPOS`, and the Worker,
  * Access or npm's setup, which have no API to do them from here.
  */
@@ -25,7 +25,8 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OWNER, latest } from "./survey.ts";
+import { OWNER, VERSIONS } from "./survey.ts";
+import { writeGitHub } from "./settings.ts";
 
 export type Kind = "package" | "site" | "tool";
 
@@ -56,12 +57,10 @@ function block(text: string, pattern: RegExp): string {
 }
 
 async function packageJson(name: string, kind: Kind, description: string): Promise<string> {
-  const found = await latest();
   const npm = (tool: string): string => {
-    const release = found[tool];
-    if (!release) throw new Error(`${tool} isn't one of the releases the survey reads`);
-    if (release instanceof Error) throw release;
-    return `^${release.version}`;
+    const version = VERSIONS[tool];
+    if (!version) throw new Error(`ship names no version for ${tool}`);
+    return version;
   };
   const ours = (...tools: string[]) =>
     Object.fromEntries(tools.map((tool) => [tool, ship.devDependencies[tool]]));
@@ -599,19 +598,17 @@ if (import.meta.main) {
       "--description",
       description,
     );
-    execFileSync("node", [join(here, "scripts", "protect.ts"), name], { stdio: "inherit" });
+    writeGitHub(name, kind === "package");
   }
 
   const left = [
-    ...(push
-      ? []
-      : [`Create ${OWNER}/${name} on GitHub, push main, then run pnpm protect ${name}.`]),
+    ...(push ? [] : [`Create ${OWNER}/${name} on GitHub, push main, then run pnpm align ${name}.`]),
     internal
       ? `Leave it out of REPOS, since the home page is public. Check it with pnpm drift ../${name}.`
       : `Add "${name}" to REPOS in scripts/survey.ts, in a pull request here.`,
     ...(kind === "site"
       ? [
-          `Connect the Worker "${name}" to the repository, with the build settings the standard lists, then check them with pnpm drift --cloudflare${internal ? ` ../${name}` : ""}.`,
+          `Connect the Worker "${name}" to the repository, then run pnpm align ${name} to write its build settings.`,
         ]
       : []),
     ...(kind === "site" && internal
