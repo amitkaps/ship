@@ -18,7 +18,7 @@ export default defineConfig({
     compatibilityDate: "2026-10-09",
     domains: ["ship.amitkaps.com"],
     assets: {
-      // Serve 404.html for any missing address.
+      // Serve the 404.html prose writes for any missing address.
       notFoundHandling: "404-page",
     },
   },

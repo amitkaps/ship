@@ -2,7 +2,7 @@
 
 ## What it is
 
-ship is the one way every repository builds, checks, deploys and releases, and the repository that shows it working. [The standard](standard.md) says what that way is. This repository follows it exactly, and `pnpm drift` and the home page show how far each of the others has drifted from it.
+ship is the one way every repository builds, checks, deploys and releases, and the repository that shows it working. [The standard](standard.md) says what that way is. This repository follows it exactly, and `pnpm drift` and [the dashboard](dashboard.md) show how far each of the others has drifted from it.
 
 ## Why
 

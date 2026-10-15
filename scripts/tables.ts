@@ -1,8 +1,9 @@
 /** @prose
  * # The tables
  *
- * Turns what [survey.ts](survey.ts) found into the two tables on the home page. The build
- * puts them where `index.html` says `__DRIFT__`, so the page stays plain HTML with no script.
+ * Turns what [survey.ts](survey.ts) found into the two tables on the dashboard.
+ * [dashboard.ts](dashboard.ts) puts each in its section of the page prose built, so the page
+ * stays plain HTML with no script.
  *
  * The first table opens with where each repository lives: its name links to it on GitHub, and
  * two rows link to its website and to the version npm gives people. Each is a dash where it
@@ -120,13 +121,11 @@ function scriptsTable(results: Result[]): string {
   )}${group(results, "The repository's own")}${own.map(row).join("")}</tbody></table>`;
 }
 
-export function tables(results: Result[], checked: Date): string {
+/** The two tables, keyed by the id of the section each goes in. */
+export function tables(results: Result[], checked: Date): Record<string, string> {
   const when = checked.toISOString().slice(0, 16).replace("T", " ");
-  return [
-    `<h2>Checks</h2>`,
-    `<div class="scroll">${checksTable(results)}</div>`,
-    `<h2>Scripts</h2>`,
-    `<div class="scroll">${scriptsTable(results)}</div>`,
-    `<p class="note">Checked ${when} UTC, from each repository's <code>main</code>.</p>`,
-  ].join("\n");
+  return {
+    "checks-table": `${checksTable(results)}<p class="why">Checked ${when} UTC, from each repository's <code>main</code>.</p>`,
+    "scripts-table": scriptsTable(results),
+  };
 }

@@ -79,7 +79,12 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         private: true,
         description,
         type: "module",
-        scripts: scripts("dev", "build", "preview", "check", "fix", "verify", "ship", "prose"),
+        // ship's own verify also builds its prose site, which a new site doesn't have.
+        scripts: {
+          ...scripts("dev", "build", "preview", "check", "fix"),
+          verify: "pnpm check && pnpm test && pnpm build",
+          ...scripts("ship", "prose"),
+        },
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
           ...ours("@cloudflare/vite-plugin", "@types/node", "cf", "vite-plus"),
@@ -597,7 +602,7 @@ if (import.meta.main) {
   const left = [
     ...(push ? [] : [`Create ${OWNER}/${name} on GitHub, push main, then run pnpm align ${name}.`]),
     internal
-      ? `Leave it out of REPOS, since the home page is public. Check it with pnpm drift ../${name}.`
+      ? `Leave it out of REPOS, since the dashboard is public. Check it with pnpm drift ../${name}.`
       : `Add "${name}" to REPOS in scripts/survey.ts, in a pull request here.`,
     ...(kind === "site"
       ? [

@@ -12,9 +12,11 @@ The scripts keep the repositories in step, and run with Node, so there's no buil
 
 ## The site
 
-The home page is `index.html`, with the survey's tables written in at build time, and `404.html`. The build also renders `docs/` with markz, so the standard reads at `ship.amitkaps.com/docs/standard.md`, and a bar on every page links the docs in their `nav` order ([scripts/docs.ts](../scripts/docs.ts)). `pnpm dev` renders a doc on each request, so it reads as it's written. All the pages share `style.css`.
+The site is `prose build`, like a package's, so the README is its home page and the standard reads at `ship.amitkaps.com/docs/standard.md`. [The dashboard](dashboard.md) is a doc too, and `pnpm dashboard` writes the survey's tables into the page prose built from it. Vite hands the folder to Cloudflare, as [vite.config.ts](../vite.config.ts) says.
 
-The Worker `ship` is connected to this repository, and each push to `main` builds and deploys it. Its dashboard settings are the ones every Worker has, listed in [the standard](standard.md#cloudflare).
+`pnpm dev` reads the working tree with prose, as it's written, with the dashboard's tables left out. To see them, commit, then run `pnpm verify` and `pnpm preview`.
+
+The Worker `ship` is connected to this repository, and each push to `main` builds and deploys it. Its settings on Cloudflare are the ones every Worker has, listed in [the standard](standard.md#cloudflare).
 
 ## Beta packages
 
