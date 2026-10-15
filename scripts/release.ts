@@ -2,7 +2,7 @@
  * # Release
  *
  * Opens the pull request that releases a package: `pnpm release sitez 0.5.0`. It works on
- * GitHub, like [protect.ts](protect.ts), so it needs `gh` logged in and no checkout of the
+ * GitHub, like [align.ts](align.ts), so it needs `gh` logged in and no checkout of the
  * package. It sets `version` in `package.json` on a branch named `release-X.Y.Z`, then opens a
  * pull request titled `vX.Y.Z`, labelled `internal`, and turns on auto-merge. Once CI passes it
  * merges, and the package's release workflow does the rest.
