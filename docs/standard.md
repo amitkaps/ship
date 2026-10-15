@@ -1,6 +1,6 @@
 # The standard
 
-How every repository builds, checks and deploys. There's one way to do each thing, and this repository is the working example of it. `pnpm drift` checks the others against it and lists where each has drifted, `pnpm align` brings them back in line, and the home page at ship.amitkaps.com shows the same as tables.
+How every repository builds, checks and deploys. There's one way to do each thing, and this repository is the working example of it. `pnpm drift` checks the others against it and lists where each has drifted, `pnpm align` brings them back in line, and [the dashboard](dashboard.md) shows the same as tables.
 
 The repositories are base, markz, prose, pagez, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
 
@@ -76,7 +76,7 @@ A repository's own libraries, like svelte or micromark, are its own to choose. `
 
 ## Held
 
-When a tool a repository depends on can't support the standard yet, the check is held: it shows amber on the home page with its reason, and doesn't fail `pnpm drift`. Each hold says when to look again, like svelte-check accepting TypeScript 7. Holds are listed in [scripts/survey.ts](../scripts/survey.ts).
+When a tool a repository depends on can't support the standard yet, the check is held: it shows amber on the dashboard with its reason, and doesn't fail `pnpm drift`. Each hold says when to look again, like svelte-check accepting TypeScript 7. Holds are listed in [scripts/survey.ts](../scripts/survey.ts).
 
 A hold is for what a tool can't do, never for a preference. The point of one standard is that a choice like Vite+ is made once and paid for once, not argued again in each repository. A hold whose check stops drifting fails `pnpm drift` until it's removed, so none outlives its reason.
 
@@ -98,7 +98,7 @@ Every repository uses these names, and runs them with `pnpm run …` in anything
 | `ship`    | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
 | `prose`   | reads the repository as a document: `prose`, so `pnpm prose build` works  |
 
-`check`, `fix`, `verify` and `prose` are in every repository, and `dev` and `build` in every site and package. A tool has nothing to serve or build, so its `verify` is `check` and `test`. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The home page lists every script side by side, so two repositories using one name for different jobs shows up.
+`check`, `fix`, `verify` and `prose` are in every repository, and `dev` and `build` in every site and package. A tool has nothing to serve or build, so its `verify` is `check` and `test`. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The dashboard lists every script side by side, so two repositories using one name for different jobs shows up.
 
 `verify` is what CI runs and what Cloudflare runs before each deploy, so the two can't disagree. `ship` never builds. Some names are pnpm's own commands, and a script by one of those names is skipped by `pnpm <name>`. Don't use `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack` for a script.
 
@@ -150,7 +150,7 @@ Every `main` takes changes the same way. Work happens on a branch, in a pull req
 - **Actions:** every workflow uses the actions at the versions this repository's do. A repository can add steps of its own, but the versions move here first, like every other version, so there's no Dependabot.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 
-`pnpm align` writes both, to every repository or to the ones named, and removes any classic branch protection. The home page checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. With that login, it checks the merge settings too, which only the owner can read.
+`pnpm align` writes both, to every repository or to the ones named, and removes any classic branch protection. The dashboard checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. With that login, it checks the merge settings too, which only the owner can read.
 
 ## Agents
 
@@ -179,7 +179,8 @@ A site has no `usage.md`, since the site is what people use, unless it has comma
 The docs are published at `/docs/<file>.md`, so a link to one works on GitHub and on the site alike.
 
 - **A package's site is `prose build`,** the repository read as a document, with nothing added to it. Its docs are in the bar, and its code is a page away.
-- **A site shows its docs its own way,** read from `docs/`, so GitHub and the site have one set of files. base renders them with SvelteKit, as the starter it is, and ship renders them with markz beside its dashboard.
+- **A site shows its docs its own way,** read from `docs/`, so GitHub and the site have one set of files. base renders them with SvelteKit, as the starter it is.
+- **A page the build fills in is a doc with a section for it.** ship's dashboard is `docs/dashboard.md`, holding the words and an empty `{@section}` for each table, so prose builds it with its bar and styles. A script fills the sections in the page prose wrote, and a ` ```=html ` block holds its styles.
 
 ## Releases
 
@@ -233,7 +234,7 @@ GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It inst
 
 ## Repositories
 
-Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../scripts/survey.ts), so the home page and `pnpm drift` check it. A repository joins one of two ways, and both end the same: in `REPOS`, protected, and passing `pnpm drift`.
+Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../scripts/survey.ts), so the dashboard and `pnpm drift` check it. A repository joins one of two ways, and both end the same: in `REPOS`, protected, and passing `pnpm drift`.
 
 ### Bringing one in
 
@@ -253,7 +254,7 @@ A change to the standard itself, like a new check, is a pull request here, and t
 
 ### Following it unlisted
 
-A private repository can follow the standard without joining `REPOS`, since the home page is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm align <repo>` still writes, and reads from GitHub whether it's private. Where it can't follow a rule, its own docs say which and why.
+A private repository can follow the standard without joining `REPOS`, since the dashboard is public and would name it. `pnpm drift <folder>` checks it from disk, everything but its branch rules and labels, which `pnpm align <repo>` still writes, and reads from GitHub whether it's private. Where it can't follow a rule, its own docs say which and why.
 
 ### Starting one
 

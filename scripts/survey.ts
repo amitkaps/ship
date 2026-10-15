@@ -2,7 +2,7 @@
  * # The survey
  *
  * Reads every repository and checks it against the standard, returning what it found as data.
- * `pnpm drift` prints it, and the build turns it into the tables on the site's home page.
+ * `pnpm drift` prints it, and the build turns it into the tables on the dashboard.
  *
  * The standard is this repository's own settings, read from its files, so there's no second
  * copy of it to keep in step. [docs/standard.md](../docs/standard.md) says what each check means.
