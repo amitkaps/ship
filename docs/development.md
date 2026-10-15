@@ -8,7 +8,7 @@ A change to how things are done starts here: in the config, in [the standard](st
 
 ## The scripts
 
-The scripts keep the repositories in step, and run with Node, so there's no build. [scripts/](../scripts/README.md) says what each one does.
+The scripts keep the repositories in step, and run with Node, so there's no build. [Usage](usage.md) says how to run them, and [scripts/](../scripts/README.md) says what each one does.
 
 ## The site
 

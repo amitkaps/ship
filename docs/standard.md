@@ -170,7 +170,7 @@ Every repository has the same docs, so anyone, or any agent, finds the same thin
 | `docs/lessons.md`     | what building it taught, each lesson what happened and what to do about it   |
 | `docs/usage.md`       | a package's install and use, and a section for agents                        |
 
-A site has no `usage.md`, since the site is what people use. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `pnpm new` writes a first version of each.
+A site has no `usage.md`, since the site is what people use, unless it has commands to run, as this repository does. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `pnpm new` writes a first version of each.
 
 The docs are published at `/docs/<file>.md`, so a link to one works on GitHub and on the site alike.
 
