@@ -158,6 +158,8 @@ Every `AGENTS.md` opens with the same two sections as [this repository's](../AGE
 
 ## Docs
 
+Explanations live in `@prose` comments, beside the code or setting they explain, and docs that span files live in `docs/`. Both are written in [markz](https://markz.amitkaps.com)'s Markdown, and `pnpm prose` reads them as one document. `package.json` has no comments, so its scripts are explained here. A hand-written `.html` page ships its comments, so it has no prose.
+
 Every repository has the same docs, so anyone, or any agent, finds the same things in the same places.
 
 | File                  | Holds                                                                        |
@@ -227,11 +229,7 @@ The next merge that changes `package.json` finds that version on npm with no tag
 
 ## CI
 
-GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It installs with `pnpm install --frozen-lockfile` and runs `pnpm run verify`, plus whatever a package adds, like publint or a size budget. Branch protection requires `ci`. Cloudflare's own check on each commit isn't required, since it runs after the merge.
-
-## Docs
-
-Explanations live in `@prose` comments, beside the code or setting they explain, and docs that span files live in `docs/`. Both are written in [markz](https://markz.amitkaps.com)'s Markdown, and `pnpm prose` reads them as one document. `package.json` has no comments, so its scripts are explained here. A hand-written `.html` page ships its comments, so it has no prose.
+GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It installs with `pnpm install --frozen-lockfile` and runs `pnpm run verify`, plus whatever a package adds, like publint or a size budget. The `main` ruleset requires `ci`. Cloudflare's own check on each commit isn't required, since it runs after the merge.
 
 ## Repositories
 
