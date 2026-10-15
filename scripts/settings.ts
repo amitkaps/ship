@@ -105,20 +105,22 @@ export function writeGitHub(repo: string, isPackage: boolean): void {
 /** @prose
  * # Cloudflare
  *
- * `cf`'s login reads and writes the Workers. With one account it's the one used, and with several,
- * `CLOUDFLARE_ACCOUNT_ID` says which, since `cf` won't pick one in a script. The answer is the
- * reason it can't, or nothing when it can.
+ * `cf`'s login reads and writes the Workers. `cf` won't pick an account in a script when the login
+ * has several, so the one used is the account named like the GitHub owner, which is where every
+ * Worker is, or the only one. Nothing is stored, and `CLOUDFLARE_ACCOUNT_ID`, when set, wins. The
+ * answer is the reason it can't, or nothing when it can.
  */
 export function cloudflareLogin(): string | undefined {
   if (process.env["CLOUDFLARE_ACCOUNT_ID"]) return undefined;
-  let accounts: { id: string }[];
+  let accounts: { id: string; name: string }[];
   try {
-    accounts = cf("accounts", "list") as { id: string }[];
+    accounts = cf("accounts", "list") as { id: string; name: string }[];
   } catch {
     return "cf isn't logged in";
   }
-  if (accounts.length !== 1) return "cf sees several accounts, so set CLOUDFLARE_ACCOUNT_ID";
-  process.env["CLOUDFLARE_ACCOUNT_ID"] = accounts[0]?.id;
+  const account = accounts.length === 1 ? accounts[0] : accounts.find((a) => a.name === OWNER);
+  if (!account) return `cf has no account named ${OWNER}, so set CLOUDFLARE_ACCOUNT_ID`;
+  process.env["CLOUDFLARE_ACCOUNT_ID"] = account.id;
   return undefined;
 }
 

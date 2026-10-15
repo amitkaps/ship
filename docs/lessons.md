@@ -87,7 +87,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **cf has no command to rename a Worker, but the dashboard does.** Settings → General → Name renames it in place, keeping its ID, Git connection and domains. Rename it there first, then change the name in the config, since a different name in the config deploys to a different Worker.
 - **Reconnecting a repository resets the Worker's build settings.** After the GitHub repository was renamed and reconnected, the commands went back to `pnpm run build` and `npx wrangler deploy`, `NODE_VERSION` was gone, the cache was off and previews were on. After any reconnect, `pnpm align` writes them back.
 - **The config lists the Worker's domains too.** Change a domain in the dashboard and in `cloudflare.config.ts` together, so a deploy can't put the old one back.
-- **cf needs `CLOUDFLARE_ACCOUNT_ID` when the login has several accounts.** It won't pick one in a script.
+- **cf needs `CLOUDFLARE_ACCOUNT_ID` when the login has several accounts.** It won't pick one in a script. drift and align pick the account named like the GitHub owner, from `cf accounts list`, so nobody has to set it.
 - **The Vite plugin's `beta` tag isn't the build to take.** Moving to cf 1.0.0-beta.17, the plugin's `beta` tag pointed at a build published that morning, which pnpm's wait wouldn't install. The plugin publishes a `2.0.0-beta.sha-…` build for each commit, so take the newest past the wait that depends on the same `@cloudflare/config` as cf, read with `pnpm view <package>@<version> dependencies`.
 
 ## Docs
