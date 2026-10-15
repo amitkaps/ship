@@ -307,13 +307,6 @@ function readme(name: string, kind: Kind, description: string): string {
 
 ${description}
 ${install}
-## Development
-
-\`\`\`sh
-pnpm install${kind === "tool" ? "" : "\npnpm dev"}
-pnpm verify    # what CI runs
-\`\`\`
-
 Read [the docs](docs/README.md) for its design, plan and lessons. It follows [ship's standard](https://ship.amitkaps.com/docs/standard.md) for how it ${
     { site: "builds, checks and deploys", package: "builds, checks and releases", tool: "checks" }[
       kind

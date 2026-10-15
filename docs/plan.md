@@ -16,18 +16,16 @@ Merging a version bump releases a package, with npm's 2FA approval the one step 
 
 ### The standard
 
-The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the home page check them.
+The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the home page check them. `pnpm drift` only reads, and `pnpm align` writes: a pull request for each repository's files, and their GitHub and Worker settings directly. Versions come from this repository, not from npm.
 
 ## Next, in order
 
-1. pagez is built, in the order [its plan](https://github.com/amitkaps/pagez/blob/main/docs/plan.md) lists: elementz and the head move in from sitez, then the compiler and its command.
-2. sitez renders its pages through pagez.
-3. pagez's first release, by hand, with npm's trusted publisher set up after.
+1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
+2. The static-site pattern in the standard: a site is a folder, Vite's `publicDir` with the Cloudflare plugin's `assetsOnly`, and `ship` runs `cf deploy --prebuilt`. Then `cloudflare.config.ts` is checked for it, wrangler leaves the catalog, and its holds go. `pnpm align` carries it to each site.
+3. A SvelteKit app on cf, with `adapter-static`, written into the standard once it builds and deploys.
 
 ## Later
 
-- base moves to cf, when cf can deploy SvelteKit.
-- markz and prose move to cf, when cf's config takes an assets folder.
 - The beta packages move to their releases, when they graduate, as [development](development.md#beta-packages) lists.
 
 ## Open questions

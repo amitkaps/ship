@@ -162,13 +162,15 @@ Every repository has the same docs, so anyone, or any agent, finds the same thin
 
 | File                  | Holds                                                                        |
 | --------------------- | ---------------------------------------------------------------------------- |
-| `README.md`           | what it is, the commands, and a link to `docs/`                              |
+| `README.md`           | what it is, how it's used, and a link to `docs/`                             |
 | `docs/README.md`      | the docs in reading order: `nav` in its metadata, and a line for each        |
 | `docs/design.md`      | what it is, why it's built this way, and what it isn't                       |
-| `docs/plan.md`        | where it is, a section per release or milestone, what's next, later and open |
-| `docs/development.md` | only what's its own: its extra scripts, its site, its release                |
+| `docs/plan.md`        | where it is, and its own next steps, later and open, not other repositories' |
+| `docs/development.md` | only what's its own: its extra scripts, its site, beyond the standard        |
 | `docs/lessons.md`     | what building it taught, each lesson what happened and what to do about it   |
 | `docs/usage.md`       | a package's install and use, and a section for agents                        |
+
+The README is the site's home page when prose builds it, so it reads as one: what it is, a short example, and the commands a user runs, like a package's command or this repository's `drift`. The repository's own scripts, like `dev` and `verify`, are the standard's, and are left to `development.md`, which links the standard for the shared toolchain, scripts and workflows rather than describing them.
 
 A site has no `usage.md`, since the site is what people use, unless it has commands to run, as this repository does. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `pnpm new` writes a first version of each.
 
