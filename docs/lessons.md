@@ -32,6 +32,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 
 - **A rule said in two places drifts in one.** The standard said a rule in words and the survey said it again in a check's label, and the two disagreed. A rule now has an id, like markz's grammar gives its side rules: the standard states it once, as a list item that opens with the id, and `scripts/rules.ts` has only the check and the fix. A test fails if either has an id the other doesn't, and `pnpm drift` prints the id with a link to where it's stated.
 - **A fix that sets the standard's value can run on every repository.** `pnpm align` had its own code to move the shared versions. Each version rule's fix now does it, reading the standard from the folder `align` just moved, and changes nothing in a repository already in line, so `align` runs every fix without checking first.
+- **One check for several rules can't say which one drifted.** The Package check held the standard's three bullets on packing, types and bundling, under one label. Each is a rule now, so `pnpm drift` links the one that drifted, and the part that can be fixed, the fields in `package.json`, has a fix of its own.
+- **A fix that edits a file someone wrote anchors on what the standard fixes.** CI's Label step goes before `pnpm install` and the trigger under `pull_request`, lines every repository has. A workflow laid out otherwise is left alone, and its check still drifts, so a fix never guesses.
 
 ## GitHub and agents
 

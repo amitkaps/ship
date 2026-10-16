@@ -29,7 +29,7 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
    - [x] Toolchain: Types, Lint, Editor, and the cooldown in `pnpm-workspace.yaml`
    - [x] Cloudflare: the config, a prose site, wrangler, internal sites
    - [x] GitHub, Agents and Docs: Actions, `AGENTS.md`, the docs
-   - [ ] Releases: the release workflow, the package, the labels
+   - [x] Releases: the release workflow, the package, the labels
 2. Add `pnpm pr` and `pnpm gone` to every repository, as shared scripts with a rule each.
    - `pnpm pr "<title>" [--label <label>]` branches from `main` when it's on it, commits, runs `verify`, pushes, opens the pull request and turns on auto-merge. A package's pull request without a label stops before the push, as CI would. `--wait` waits for the merge, then switches to `main` and pulls.
    - `pnpm gone` fetches, prunes, and deletes each local branch whose remote is gone, which is each one that merged. It works where a global git alias isn't set, like an agent's machine.

@@ -18,12 +18,12 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
-import { writeRuleset } from "./settings.ts";
+import { writeLabels, writeRuleset } from "./settings.ts";
 import type { BranchRule, Finding, Repo } from "./survey.ts";
 
 export type Fix =
   | { in: "files"; apply: (dir: string, std: string) => void }
-  | { in: "github"; apply: (repo: string) => void };
+  | { in: "github"; apply: (repo: string, pkg: Pkg) => void };
 
 export type Rule = {
   id: string;
@@ -253,6 +253,36 @@ const nav = (text: string): string[] =>
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean);
+
+/** @prose
+ * # Releases
+ *
+ * A package releases the way every package does, with the files in [package/](../package/README.md)
+ * copied in unchanged, and CI's `Label` step from this repository's, word for word. The fix copies
+ * the files, and puts the step before the install and the trigger on the pull request, where a
+ * workflow has them. One laid out otherwise is left to do by hand, and the check still says so.
+ */
+const RELEASE_FILES = [".github/workflows/release.yml", ".github/release.yml"];
+const CI = ".github/workflows/ci.yml";
+const LABEL_STEP = /^ {6}- name: Label\n[\s\S]*?\n {10}'\n/m;
+const LABEL_TRIGGER = /^ {4}types: \[.*labeled.*\]$/m;
+const INSTALL = /^ {6}- run: pnpm install/m;
+const TYPES = /^( {2}pull_request:\n(?: {4}branches: .*\n)?)(?: {4}types: .*\n)?/m;
+const shipCi = read(join(here, CI));
+const labelStep = LABEL_STEP.exec(shipCi)?.[0] ?? "";
+const labelTrigger = LABEL_TRIGGER.exec(shipCi)?.[0] ?? "";
+const labelNames = (
+  JSON.parse(read(join(here, ".github", "labels.json"))) as { name: string }[]
+).map((label) => label.name);
+
+function addLabel(ci: string): string {
+  let text = ci;
+  if (!text.includes(labelStep)) text = text.replace(INSTALL, (line) => `${labelStep}\n${line}`);
+  if (!text.includes(labelTrigger)) {
+    text = text.replace(TYPES, (_, head: string) => `${head}${labelTrigger}\n`);
+  }
+  return text;
+}
 
 export const RULES: Rule[] = [
   {
@@ -687,9 +717,110 @@ export const RULES: Rule[] = [
       return drifted(drift);
     },
   },
+  {
+    id: "releases.files",
+    check: ({ pkg, files }) => {
+      if (pkg.private) return undefined;
+      const drift = RELEASE_FILES.flatMap((file) => {
+        if (!files[file]) return [`no ${file}`];
+        return files[file] === read(join(here, "package", file))
+          ? []
+          : [`${file} differs from ship's`];
+      });
+      const ci = files[CI] ?? "";
+      if (!ci.includes(labelStep)) drift.push("ci.yml doesn't have ship's Label step");
+      if (!ci.includes(labelTrigger)) drift.push("ci.yml doesn't run again when a label changes");
+      return drifted(drift);
+    },
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        if (readPkg(dir).private) return;
+        for (const file of RELEASE_FILES) {
+          mkdirSync(dirname(join(dir, file)), { recursive: true });
+          writeFileSync(join(dir, file), readFileSync(join(std, "package", file)));
+        }
+        const ci = read(join(dir, CI));
+        if (ci) writeFileSync(join(dir, CI), addLabel(ci));
+      },
+    },
+  },
+  {
+    id: "releases.packing",
+    check: ({ pkg, files, deps }) => {
+      if (pkg.private) return undefined;
+      const drift: string[] = [];
+      if (pkg.scripts?.prepack !== "pnpm run build")
+        drift.push(`prepack is ${pkg.scripts?.prepack}, not pnpm run build`);
+      if (JSON.stringify(pkg.files) !== '["dist"]')
+        drift.push(`files is ${JSON.stringify(pkg.files)}, not ["dist"]`);
+      if (pkg.publishConfig?.access !== "public") drift.push("publishConfig.access isn't public");
+      if (!deps.publint) drift.push("no publint dev dependency");
+      if (!/publint:\s*\{[^}]*strict:\s*true/.test(files["vite.config.ts"] ?? "")) {
+        drift.push("pack doesn't run publint with strict: true");
+      }
+      return drifted(drift);
+    },
+    // The fields in package.json. The pack block in vite.config.ts is left to do by hand.
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        const pkg = readPkg(dir);
+        if (pkg.private) return;
+        pkg.scripts = { ...pkg.scripts, prepack: "pnpm run build" };
+        pkg.files = ["dist"];
+        pkg.publishConfig = { ...pkg.publishConfig, access: "public" };
+        const publint = versionsIn(std)["publint"];
+        if (publint && !pkg.dependencies?.["publint"]) {
+          pkg.devDependencies = { ...pkg.devDependencies, publint };
+        }
+        writePkg(dir, pkg);
+      },
+    },
+  },
+  {
+    id: "releases.types",
+    check: ({ pkg, files, deps }) => {
+      if (pkg.private) return undefined;
+      const drift: string[] = [];
+      if (!/dts:\s*\{[^}]*generator:\s*"oxc"/.test(files["vite.config.ts"] ?? "")) {
+        drift.push('pack doesn\'t write types with generator: "oxc"');
+      }
+      if (/"isolatedDeclarations"\s*:\s*true/.test(files["tsconfig.json"] ?? "")) {
+        drift.push("tsconfig.json sets isolatedDeclarations, which pack sets");
+      }
+      if (deps.typescript) drift.push("has typescript, which Oxc's types don't need");
+      return drifted(drift);
+    },
+  },
+  {
+    id: "releases.bundled",
+    check: ({ pkg }) => {
+      if (pkg.private) return undefined;
+      return drifted(
+        Object.keys(pkg.dependencies ?? {})
+          .filter((name) => name.startsWith("@amitkaps/"))
+          .map((name) => `depends on ${name}, rather than bundling it`),
+      );
+    },
+  },
+  {
+    id: "releases.labels",
+    check: ({ pkg, labels }) => {
+      if (pkg.private || !labels) return undefined;
+      if (labels instanceof Error) return unread(labels);
+      return drifted(labelNames.filter((n) => !labels.includes(n)).map((n) => `no ${n} label`));
+    },
+    fix: {
+      in: "github",
+      apply: (repo, pkg) => {
+        if (!pkg.private) writeLabels(repo);
+      },
+    },
+  },
 ];
 
 /** Applies every fix that's written on GitHub, for `pnpm align` and `pnpm new --push`. */
-export function fixGitHub(repo: string): void {
-  for (const rule of RULES) if (rule.fix?.in === "github") rule.fix.apply(repo);
+export function fixGitHub(repo: string, pkg: Pkg): void {
+  for (const rule of RULES) if (rule.fix?.in === "github") rule.fix.apply(repo, pkg);
 }

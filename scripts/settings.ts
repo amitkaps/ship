@@ -63,18 +63,28 @@ export function mergeDrift(repo: string): string[] {
  * The merge settings come from [.github/settings.json](../.github/settings.json): squash only,
  * branches deleted after merging, and auto-merge on.
  *
- * A package also gets the labels its release notes are grouped by, from
+ * The branch rules and a package's labels are the fixes of `github.rules` and `releases.labels`,
+ * in [rules.ts](rules.ts), written by `writeRuleset` and `writeLabels` below.
+ */
+export function writeGitHub(repo: string): void {
+  gh(
+    "api",
+    "--method",
+    "PATCH",
+    `repos/${OWNER}/${repo}`,
+    "--input",
+    join(here, ".github", "settings.json"),
+  );
+}
+
+/** @prose
+ * # Writing the labels
+ *
+ * The labels a package's release notes are grouped by, from
  * [.github/labels.json](../.github/labels.json). Each is created, or updated when it exists, and
  * other labels are left alone.
- *
- * The branch rules are `github.rules`'s fix, in [rules.ts](rules.ts), and written by
- * `writeRuleset` below.
  */
-export function writeGitHub(repo: string, isPackage: boolean): void {
-  const api = `repos/${OWNER}/${repo}`;
-  gh("api", "--method", "PATCH", api, "--input", join(here, ".github", "settings.json"));
-
-  if (!isPackage) return;
+export function writeLabels(repo: string): void {
   for (const { name, color, description } of labels) {
     const repoFlag = ["-R", `${OWNER}/${repo}`];
     gh(

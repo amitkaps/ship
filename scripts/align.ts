@@ -257,8 +257,8 @@ async function files(repo: string, std: string): Promise<Outcome> {
 function settings(repo: string): string[] {
   const dir = join(work, repo);
   const pkg = existsSync(join(dir, "package.json")) ? readJson<Pkg>(join(dir, "package.json")) : {};
-  writeGitHub(repo, !pkg.private);
-  fixGitHub(repo);
+  writeGitHub(repo);
+  fixGitHub(repo, pkg);
   const files = Object.fromEntries(
     ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"].map((f) => [
       f,

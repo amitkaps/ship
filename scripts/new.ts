@@ -597,8 +597,8 @@ if (import.meta.main) {
       "--description",
       description,
     );
-    writeGitHub(name, kind === "package");
-    fixGitHub(name);
+    writeGitHub(name);
+    fixGitHub(name, { private: kind !== "package" });
   }
 
   const left = [
