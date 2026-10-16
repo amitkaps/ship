@@ -96,6 +96,8 @@ export const SHARED = [
   "verify",
   "ship",
   "prose",
+  "pr",
+  "gone",
 ];
 const BUILT = ["dev", "build"];
 const REQUIRED = ["check", "fix", "verify", "prose"];
@@ -283,6 +285,42 @@ function addLabel(ci: string): string {
   }
   return text;
 }
+
+/** @prose
+ * # A shared script
+ *
+ * A script every repository runs the same way, from a file this repository holds: `pnpm pr` runs
+ * `scripts/pr.ts`. Each repository has the script as this one writes it, and the file word for
+ * word, and the fix copies both.
+ */
+const sharedScript = (id: string, name: string): Rule => ({
+  id,
+  check: ({ pkg, files }) => {
+    const file = `scripts/${name}.ts`;
+    const drift: string[] = [];
+    const script = pkg.scripts?.[name];
+    if (script !== standardScripts[name]) {
+      drift.push(
+        script ? `${name} is ${script}, not ${standardScripts[name]}` : `no ${name} script`,
+      );
+    }
+    if (!files[file]) drift.push(`no ${file}`);
+    else if (files[file] !== read(join(here, file))) drift.push(`${file} differs from ship's`);
+    return drifted(drift);
+  },
+  fix: {
+    in: "files",
+    apply: (dir, std) => {
+      const file = join("scripts", `${name}.ts`);
+      mkdirSync(join(dir, "scripts"), { recursive: true });
+      writeFileSync(join(dir, file), readFileSync(join(std, file)));
+      const pkg = readPkg(dir);
+      const want = readPkg(std).scripts?.[name];
+      if (want) pkg.scripts = { ...pkg.scripts, [name]: want };
+      writePkg(dir, pkg);
+    },
+  },
+});
 
 export const RULES: Rule[] = [
   {
@@ -561,6 +599,8 @@ export const RULES: Rule[] = [
         ),
       ),
   },
+  sharedScript("scripts.pr", "pr"),
+  sharedScript("scripts.gone", "gone"),
   {
     id: "cloudflare.config",
     check: ({ worker: site }) => {
