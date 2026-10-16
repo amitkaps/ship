@@ -21,7 +21,7 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 ## Next, in order
 
 1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
-2. The static-site pattern in the standard. ship's own site is the first: `.prose` is Vite's `publicDir`, the Cloudflare plugin's `assetsOnly` hands it on, and `ship` runs `cf deploy --prebuilt`. Once its first deploy from `main` serves, the pattern goes in the standard with its check in `cloudflare.config.ts`, wrangler leaves the catalog, and its holds go. `pnpm align` carries it to each site.
+2. The static-site pattern, now in the standard as [a prose site](standard.md#a-prose-site). ship's own site deployed this way from `main`, so the holds on markz, prose and sitez are gone and `pnpm drift` lists them. Each moves in a pull request of its own: `cloudflare.config.ts` for `wrangler.toml`, the Vite config, `ship` and `verify`. `pnpm align` moves versions, not configs, so these are by hand. wrangler stays in the catalog while base is on it.
 3. A SvelteKit app on cf, with `adapter-static`, written into the standard once it builds and deploys.
 
 ## Later
@@ -35,5 +35,3 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 - Should a site's docs be checked for the same sections, or only for the files?
 
 - **A deploy by hand picks no account.** The login sees two Cloudflare accounts, so `pnpm ship` on a laptop stops and asks for `CLOUDFLARE_ACCOUNT_ID`. Workers Builds isn't affected, and `pnpm align` picks the account by name. The account could go in `cloudflare.config.ts`, or a deploy by hand could stay rare enough to set the variable.
-
-- **The static pattern rests on a beta.** `assetsOnly` is in `@cloudflare/vite-plugin` 2.0.0-beta.sha-67fa336fd, which ship pins, and still in 2.0.0-beta.v.1, the `beta` tag since 2026-10-16. pnpm's one-day wait holds that one back until 2026-10-17. The question is whether the sites move on the sha build, or ship moves to beta.v.1 first and they follow it.

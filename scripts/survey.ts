@@ -26,6 +26,7 @@ const FILES = [
   "pnpm-workspace.yaml",
   "tsconfig.json",
   "vite.config.ts",
+  ".gitignore",
   ".vscode/settings.json",
   ".vscode/extensions.json",
   "cloudflare.config.ts",
@@ -460,15 +461,7 @@ export type Finding = { value?: string; drift: string[]; held?: string; unchecke
  * the hold: a held check that has nothing left to hold reports that as drift, so a hold can't
  * outlive its reason.
  */
-// cf deploys what its Vite plugin builds. A site that `prose build` writes isn't built by Vite, so
-// `cf deploy` hands it to wrangler, and cf's config has no field for the folder.
-const PROSE_SITE =
-  "cf deploys only a Vite build, and this site is written by prose build. Move when cf's config takes an assets folder.";
-
 export const HELD: Record<string, Record<string, string>> = {
-  markz: { Cloudflare: PROSE_SITE },
-  prose: { Cloudflare: PROSE_SITE },
-  sitez: { Cloudflare: PROSE_SITE },
   base: {
     typescript: "svelte-check accepts TypeScript 5 and 6 only. Move when its peer range takes 7.",
     Cloudflare:
@@ -702,6 +695,38 @@ export const CHECKS: Check[] = [
       const drift =
         site.file === "cloudflare.config.ts" ? [] : [`still on wrangler (${site.file})`];
       return { value: site.file, drift };
+    },
+  },
+  /** @prose
+   * # A prose site on cf
+   *
+   * A site that's the folder `prose build` writes reaches cf through Vite: the folder is Vite's
+   * `publicDir`, the Cloudflare plugin writes it out as assets only, and a `vp build` after
+   * `prose build` in `verify` runs the two. In a package, `build` is `vp pack`, so `verify` runs
+   * `vp build` itself. The plugin's output is `.cloudflare/`, which isn't committed.
+   */
+  {
+    name: "prose site",
+    group: "Setup",
+    rule: "a prose site on cf hands .prose to Vite, and verify builds it after prose build",
+    run: ({ files, pkg, worker: site }) => {
+      const verify = pkg.scripts?.verify ?? "";
+      if (site?.file !== "cloudflare.config.ts" || !/pnpm prose build/.test(verify)) {
+        return undefined;
+      }
+      const vite = files["vite.config.ts"] ?? "";
+      const drift: string[] = [];
+      if (!/publicDir:\s*"\.prose"/.test(vite)) drift.push("vite.config.ts doesn't serve .prose");
+      if (!/cloudflare\(\{\s*assetsOnly:\s*true\s*\}\)/.test(vite)) {
+        drift.push("vite.config.ts doesn't use the Cloudflare plugin with assetsOnly");
+      }
+      const after = verify.slice(verify.indexOf("pnpm prose build"));
+      const build = pkg.scripts?.build === "vp build" ? /&& (pnpm build|vp build)/ : /&& vp build/;
+      if (!build.test(after)) drift.push("verify doesn't run vp build after pnpm prose build");
+      if (!/^\/?\.cloudflare\/?$/m.test(files[".gitignore"] ?? "")) {
+        drift.push(".gitignore doesn't ignore .cloudflare");
+      }
+      return { value: "prose", drift };
     },
   },
   {
