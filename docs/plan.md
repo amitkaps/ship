@@ -33,3 +33,7 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 - **Pages that aren't the repository.** ship's dashboard is now a doc with empty sections that a script fills after `prose build`, so it has prose's bar and styles. markz's quality page still sits outside prose's frame with no bar. It could become a doc the same way, or prose could take a page for a section, so the trick isn't needed.
 
 - Should a site's docs be checked for the same sections, or only for the files?
+
+- **A deploy by hand picks no account.** The login sees two Cloudflare accounts, so `pnpm ship` on a laptop stops and asks for `CLOUDFLARE_ACCOUNT_ID`. Workers Builds isn't affected, and `pnpm align` picks the account by name. The account could go in `cloudflare.config.ts`, or a deploy by hand could stay rare enough to set the variable.
+
+- **The static pattern rests on a beta.** `assetsOnly` is in `@cloudflare/vite-plugin` 2.0.0-beta.sha-67fa336fd, which ship pins, and still in 2.0.0-beta.v.1, the `beta` tag since 2026-10-16. pnpm's one-day wait holds that one back until 2026-10-17. The question is whether the sites move on the sha build, or ship moves to beta.v.1 first and they follow it.
