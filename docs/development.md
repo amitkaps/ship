@@ -22,7 +22,7 @@ The Worker `ship` is connected to this repository, and each push to `main` build
 
 Two packages are still beta. Check them with `pnpm view <name> dist-tags`.
 
-| Package                   | Pinned                     | Status (2026-10-15)                 | Done when                      |
+| Package                   | Pinned                     | Status (2026-10-16)                 | Done when                      |
 | ------------------------- | -------------------------- | ----------------------------------- | ------------------------------ |
 | `@cloudflare/vite-plugin` | `2.0.0-beta.sha-67fa336fd` | `beta` tag only; `latest` is 1.64.0 | `latest` is a 2.x release      |
 | `cf`                      | `1.0.0-beta.17`            | `latest` is the beta                | `latest` is a non-beta release |

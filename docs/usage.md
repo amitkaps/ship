@@ -13,7 +13,7 @@ The commands use the logins `gh` and `cf` already have, so there's no token to k
 | `pnpm release` | needed       | not used                            |
 | `pnpm new`     | for `--push` | not used                            |
 
-`gh auth login` logs in to GitHub, as the owner. `pnpm exec cf auth login` logs in to Cloudflare. When the login sees more than one account, the account named like the GitHub owner is used, and `CLOUDFLARE_ACCOUNT_ID` overrides it.
+`gh auth login` logs in to GitHub, as the owner. `pnpm exec cf auth login` logs in to Cloudflare. When the login sees more than one account, these commands use the one named like the GitHub owner, and `CLOUDFLARE_ACCOUNT_ID` overrides it. A `pnpm ship` by hand picks none, so set the variable there.
 
 ## Checking
 
