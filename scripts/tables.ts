@@ -16,7 +16,9 @@
  * repositories is easy to spot. A required script that's missing says so, and an optional one
  * that's absent is a dash.
  */
-import { CHECKS, OWNER, SHARED, type Result } from "./survey.ts";
+import { SHARED } from "./rules.ts";
+import { OWNER } from "./ship.ts";
+import { CHECKS, type Check, type Result } from "./survey.ts";
 
 const escape = (text: string): string =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -85,23 +87,32 @@ function checkCell(result: Result, index: number): string {
 const group = (results: Result[], label: string): string =>
   `<tr class="group"><th colspan="${results.length + 1}" scope="rowgroup">${label}</th></tr>`;
 
+// A rule's line comes from the standard's Markdown, so its code spans stay code and its links
+// keep only their text.
+const inline = (text: string): string =>
+  escape(text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+// A rule with an id links to where the standard states it.
+const label = (check: Check): string =>
+  check.link ? `<a href="${check.link}"><code>${check.name}</code></a>` : check.name;
+
 // A group's heading goes above its first check, so versions and setup read as two sections.
 function checksTable(results: Result[]): string {
   const rows = CHECKS.map(
     (check, i) =>
-      `${check.group === CHECKS[i - 1]?.group ? "" : group(results, check.group)}<tr><th scope="row">${
-        check.name
-      }<small>${escape(check.rule)}</small></th>${results.map((r) => checkCell(r, i)).join("")}</tr>`,
+      `${check.group === CHECKS[i - 1]?.group ? "" : group(results, check.group)}<tr><th scope="row">${label(
+        check,
+      )}<small>${inline(check.rule)}</small></th>${results.map((r) => checkCell(r, i)).join("")}</tr>`,
   );
   return `<table>${head(results, "Repo", true)}<tbody>${where(results)}${rows.join("")}</tbody></table>`;
 }
 
-// The Scripts check already decides which names are required, so a missing one is found
-// in its drift rather than worked out again here.
+// `scripts.required` already decides which names are required, so a missing one is found in
+// its drift rather than worked out again here.
 function scriptCell(result: Result, name: string): string {
   const command = result.scripts[name];
   if (command) return `<td>${code(command)}</td>`;
-  const scripts = CHECKS.findIndex((c) => c.name === "Scripts");
+  const scripts = CHECKS.findIndex((c) => c.name === "scripts.required");
   if (result.findings[scripts]?.drift.includes(`no ${name} script`)) {
     return `<td class="bad">missing</td>`;
   }

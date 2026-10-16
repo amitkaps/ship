@@ -4,7 +4,7 @@ How this repository is built and changed. What every repository shares is in [th
 
 ## Changing the standard
 
-A change to how things are done starts here: in the config, in [the standard](standard.md) and, when it can be checked, in [scripts/survey.ts](../scripts/survey.ts). `pnpm drift` then lists the repositories to bring in line, each with its own pull request. What the change taught goes in [the lessons](lessons.md), in the same pull request.
+A change to how things are done starts here: in the config, in [the standard](standard.md) and, when it can be checked, as a rule: a list item in the standard that opens with an id, like ``- `scripts.verify`: …``, and a check under the same id in [scripts/rules.ts](../scripts/rules.ts), with a fix when one can be automated. [rules.test.ts](../scripts/rules.test.ts) fails if either has an id the other doesn't. `pnpm drift` then lists the repositories to bring in line, each with its own pull request. What the change taught goes in [the lessons](lessons.md), in the same pull request.
 
 ## The scripts
 

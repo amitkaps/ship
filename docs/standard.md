@@ -4,6 +4,8 @@ How every repository builds, checks and deploys. There's one way to do each thin
 
 The repositories are base, markz, prose, pagez, sitez and this one. Where this page gives a version, the real value is in this repository's files, and `pnpm drift` reads it from there.
 
+A rule `pnpm drift` checks is a list item that opens with its id, like `scripts.verify`. Its first sentence is the rule, and the rest says why. `pnpm drift` prints the id on each line a repository drifted on, with a link back to the part of this page that states it. The check, and the fix where one can be automated, are in [scripts/rules.ts](../scripts/rules.ts), under the same id. Some checks don't have an id yet, and they move over part by part.
+
 ## Kinds
 
 What a repository must have follows from three facts, each read from where it already lives, so none is declared twice.
@@ -51,7 +53,7 @@ Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a c
 "packageManager": "pnpm@12.13.0"
 ```
 
-- **pnpm is pinned exactly, with `onFail: download`.** Whatever pnpm is installed globally, pnpm fetches and runs the pinned one, so a new pnpm release never breaks a checkout. CI reads `packageManager`, so keep the two equal.
+- `versions.pnpm`: pnpm is pinned exactly, with `onFail: download`. Whatever pnpm is installed globally, pnpm fetches and runs the pinned one, so a new pnpm release never breaks a checkout. CI reads `packageManager`, so keep the two equal.
 - **Node fails loudly.** `onFail: error` stops on the wrong Node.
 - **One Node, for building and for using.** `engines` says the same `>=26` as `devEngines`. A package supports the Node it's built and tested on, and nothing older, so CI runs on one Node. Node 26 is the LTS release from October 2026. When the next LTS arrives, every repository moves to it at once, and for a package that's a breaking release.
 - **Bump deliberately, everywhere at once.** Being on the latest pnpm doesn't matter. Being on the same one does.
@@ -96,9 +98,18 @@ Every repository uses these names, and runs them with `pnpm run …` in anything
 | `ship`    | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
 | `prose`   | reads the repository as a document: `prose`, so `pnpm prose build` works  |
 
-`check`, `fix`, `verify` and `prose` are in every repository, and `dev` and `build` in every site and package. A tool has nothing to serve or build, so its `verify` is `check`, `prose check` and `test`. `prose check` fails on what the text gets wrong, which `prose build` only prints, so a mistake in a doc or a comment stops a merge the way a lint error does. Text the repository didn't write, like a test corpus or a fixture that's wrong on purpose, is marked `linguist-vendored` in `.gitattributes`, and isn't checked. `test` is there when there are tests, and `ship` when there's a site. `preview` is a site's, and a package, whose build is `dist/`, has none. Any other script is the repository's own, like a package's `size` or `fuzz`. On Vite+, `fix` is exactly `vp check --fix`, and `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after, but no second formatter or linter, and no separate `lint` or `fmt` scripts. The dashboard lists every script side by side, so two repositories using one name for different jobs shows up.
+- `scripts.required`: `check`, `fix`, `verify` and `prose` are in every repository, `dev` and `build` in every site and package, and `ship` in every site. A tool has nothing to serve or build, so its `verify` is `check`, `prose check` and `test`. `test` is there when there are tests.
+- `scripts.check`: on Vite+, `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after.
+- `scripts.fix`: on Vite+, `fix` is exactly `vp check --fix`.
+- `scripts.one-checker`: on Vite+, there are no `lint` or `fmt` scripts. `check` and `fix` cover both, and a framework adds no second formatter or linter.
+- `scripts.verify`: `verify` runs `pnpm prose check`. It fails on what the text gets wrong, which `prose build` only prints, so a mistake in a doc or a comment stops a merge the way a lint error does.
+- `scripts.prose`: `prose` is exactly `prose`, so `pnpm prose build` works. prose's own repository runs its command line from source.
+- `scripts.preview`: `preview` is a site's, the same as this repository's. A package, whose build is `dist/`, has none.
+- `scripts.pnpm-names`: no script is named `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack`. Those are pnpm's own commands, and `pnpm <name>` skips a script by one of those names.
 
-`verify` is what CI runs and what Cloudflare runs before each deploy, so the two can't disagree. `ship` never builds. Some names are pnpm's own commands, and a script by one of those names is skipped by `pnpm <name>`. Don't use `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack` for a script.
+Text the repository didn't write, like a test corpus or a fixture that's wrong on purpose, is marked `linguist-vendored` in `.gitattributes`, and `prose check` skips it. Any other script is the repository's own, like a package's `size` or `fuzz`. The dashboard lists every script side by side, so two repositories using one name for different jobs shows up.
+
+`verify` is what CI runs and what Cloudflare runs before each deploy, so the two can't disagree. `ship` never builds.
 
 A lifecycle script, one pnpm runs on its own like `prepare` on install or `prepack` before packing, only does what another step needs first. base's `prepare` generates the types SvelteKit and the Worker need, so a fresh clone type-checks. A package's `prepack` is `pnpm run build`, so a tarball never ships a stale `dist/`. Neither builds a site or deploys.
 
@@ -163,7 +174,7 @@ The config is where the repository says it's internal, with a `@prose` comment s
 
 Every `main` takes changes the same way. Work happens on a branch, in a pull request, and `ci` has to pass on a branch that's up to date with `main`. The pull request is squash-merged, so `main` reads as one commit per change, and nobody pushes to it, admins included.
 
-- **Branch rules:** one ruleset, named `main`, from [.github/ruleset.json](../.github/ruleset.json). It requires a pull request with no approvals, since there's one maintainer, and the `ci` check. It keeps history linear, and blocks force pushes and deleting the branch. Nobody bypasses it.
+- `github.rules`: `main` has one ruleset, named `main`, from [.github/ruleset.json](../.github/ruleset.json). It requires a pull request with no approvals, since there's one maintainer, and the `ci` check. It keeps history linear, and blocks force pushes and deleting the branch. Nobody bypasses it.
 - **Actions:** every workflow uses the actions at the versions this repository's do. A repository can add steps of its own, but the versions move here first, like every other version, so there's no Dependabot.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 

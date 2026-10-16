@@ -9,6 +9,8 @@
  * settings when `gh` is logged in, and each Worker's build settings when `cf` is. Without a login,
  * drift says once what it couldn't check, rather than calling it drift, so a run with no logins
  * still checks every file. A held check is printed with its reason, and doesn't count as drift.
+ * A rule with an id, like `scripts.verify`, prints it before each line it drifted on, and once
+ * below them, a link to where [the standard](../docs/standard.md) states it.
  *
  * A folder named on the command line, like `pnpm drift ../markz`, is checked from disk in place
  * of the repositories. That checks a fix before it's pushed, with a listed repository's holds
@@ -17,6 +19,7 @@
  * name is taken as the repository's on GitHub, and an internal site's Access is checked too.
  */
 import { basename, resolve } from "node:path";
+import { stated } from "./rules.ts";
 import { type Finding, checkFolder, survey } from "./survey.ts";
 import { accessDrift, cloudflareLogin, githubLogin, mergeDrift, workerDrift } from "./settings.ts";
 
@@ -34,11 +37,18 @@ function settings(repo: string, worker?: { name: string }): string[] {
   ];
 }
 
+const links = new Map(stated().map((s) => [s.id, s.link]));
+const lines = (f: Finding): string[] => f.drift.map((d) => (f.rule ? `${f.rule}: ${d}` : d));
+
 function print(name: string, drift: string[], findings: Finding[]): boolean {
   console.log(drift.length ? `✗ ${name}` : `✓ ${name}`);
   for (const line of drift) console.log(`    ${line}`);
+  const read = findings.filter((f) => f.rule && !f.held && f.drift.length);
+  for (const link of new Set(read.map((f) => links.get(f.rule ?? "")))) {
+    console.log(`    read: ${link}`);
+  }
   for (const f of findings.filter((f) => f.held)) {
-    console.log(`    held: ${f.drift.join("; ")}\n      ${f.held}`);
+    console.log(`    held: ${lines(f).join("; ")}\n      ${f.held}`);
   }
   for (const f of findings.filter((f) => f.unchecked))
     console.log(`    not checked: ${f.unchecked}`);
@@ -48,14 +58,14 @@ function print(name: string, drift: string[], findings: Finding[]): boolean {
 let drifted = false;
 for (const folder of folders) {
   const { findings, worker: site } = await checkFolder(resolve(folder));
-  const drift = findings.flatMap((f) => (f.held ? [] : f.drift));
+  const drift = findings.flatMap((f) => (f.held ? [] : lines(f)));
   drift.push(...settings(basename(resolve(folder)), site));
   if (site?.internal && !cloudflare) drift.push(...accessDrift(site));
   drifted = print(folder, drift, findings) || drifted;
 }
 for (const result of folders.length ? [] : await survey()) {
   const findings = result.findings.flatMap((f) => (f ? [f] : []));
-  const drift = result.error ? [result.error] : findings.flatMap((f) => (f.held ? [] : f.drift));
+  const drift = result.error ? [result.error] : findings.flatMap((f) => (f.held ? [] : lines(f)));
   if (!result.error) drift.push(...settings(result.repo, result.worker));
   drifted = print(result.repo, drift, findings) || drifted;
 }
