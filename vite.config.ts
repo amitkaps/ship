@@ -19,27 +19,12 @@ import { cloudflare } from "@cloudflare/vite-plugin";
  * folder as its `publicDir`, and the Cloudflare plugin hands it on. cf's config has no field for
  * an assets folder, so this is how a folder reaches `cf deploy`.
  *
- * Vite won't build without an entry, so the build has an empty one, which the `folder` plugin
- * drops from the output. Only the folder's files are deployed.
+ * Vite won't build without an entry. With no `index.html` at the root and files in `publicDir`,
+ * the plugin builds an empty one and deletes it, so only the folder's files are deployed.
  */
-const ENTRY = "\0folder";
-
 export default defineConfig({
   publicDir: ".prose",
-  build: {
-    rollupOptions: { input: ENTRY },
-  },
   plugins: [
-    {
-      name: "folder",
-      resolveId: (id) => (id === ENTRY ? ENTRY : undefined),
-      load: (id) => (id === ENTRY ? "" : undefined),
-      generateBundle(_, bundle) {
-        for (const [name, file] of Object.entries(bundle)) {
-          if (file.type === "chunk" && file.facadeModuleId === ENTRY) delete bundle[name];
-        }
-      },
-    },
     /** @prose
      * # Assets only
      *

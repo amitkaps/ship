@@ -123,6 +123,21 @@ Previews           off
 
 `verify` fails on a failing check, so a merge that breaks one doesn't deploy. Previews stay off because CI already checks every pull request. If a public repository turns them on, it sets the preview deploy command too: `pnpm exec wrangler versions upload`, or `pnpm exec cf workers versions create --prebuilt`.
 
+### A prose site
+
+A site that's the folder `prose build` writes, like ship's or a package's, deploys with cf through Vite. cf's config has no field for an assets folder, so Vite hands the folder on.
+
+```ts
+export default defineConfig({
+  publicDir: ".prose",
+  plugins: [cloudflare({ assetsOnly: true })],
+});
+```
+
+- **Vite serves the folder.** `.prose` is Vite's `publicDir`. With no `index.html` at the root, the Cloudflare plugin builds an empty entry and deletes it, so only the folder's files are deployed.
+- **`verify` builds it after `prose build`.** In a site, that's `pnpm build`, which is `vp build`. In a package, `build` is `vp pack`, so `verify` ends with `vp build` itself. Anything that adds to the site, like markz's Quality page, runs before it.
+- **`ship` is `cf deploy --prebuilt`.** It uploads `.cloudflare/output/`, which `.gitignore` leaves out.
+
 ### Internal sites
 
 A private repository's site is internal. It deploys like any other site, and three things keep it private.
