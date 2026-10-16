@@ -13,13 +13,12 @@
  * since that's the commit being built. To check a fix before it's pushed, `pnpm drift` takes the
  * folder instead ([A folder](#a-folder)).
  */
-import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { basename, join } from "node:path";
+import { type Rule, RULES, stated } from "./rules.ts";
+import { OWNER, type Pkg, here, read, standard } from "./ship.ts";
 
 export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
 
-export const OWNER = "amitkaps";
 const SELF = "ship";
 const FILES = [
   "package.json",
@@ -47,27 +46,7 @@ const FILES = [
   "docs/usage.md",
 ];
 
-const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
 type Files = Record<string, string>;
-
-type Pkg = {
-  name?: string;
-  private?: boolean;
-  files?: string[];
-  publishConfig?: { access?: string };
-  packageManager?: string;
-  devEngines?: {
-    packageManager?: { version?: string; onFail?: string };
-    runtime?: { version?: string; onFail?: string };
-  };
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  scripts?: Record<string, string>;
-  engines?: { node?: string };
-};
-
-const read = (file: string): string => (existsSync(file) ? readFileSync(file, "utf8") : "");
 
 function fromDisk(dir: string): Files {
   return Object.fromEntries(FILES.map((file) => [file, read(join(dir, file))]));
@@ -88,12 +67,9 @@ async function fromGitHub(repo: string): Promise<Files> {
   return Object.fromEntries(entries);
 }
 
-const standard = JSON.parse(read(join(here, "package.json"))) as Pkg;
-const pnpm = standard.packageManager?.replace(/^pnpm@/, "");
 const standardDeps = standard.devDependencies ?? {};
 const vitePlus = standardDeps["vite-plus"];
 const node = standard.devEngines?.runtime;
-export const nodeMajor = /\d+/.exec(standard.engines?.node ?? "")?.[0];
 
 /** @prose
  * # The shared versions
@@ -163,42 +139,6 @@ const editor = Object.fromEntries(
 );
 
 /** @prose
- * # The scripts
- *
- * Every repository uses the same names for the same jobs, so `pnpm verify` means one thing
- * everywhere. Most are required. `dev` and `build` are a site's or a package's, and a tool, which
- * is private and has no site, has nothing to serve or build. `test` is there when a repository has
- * tests, and `ship` when it has a site. `preview` serves what `build` wrote, with `vp preview`, so it's a site's, and a
- * package doesn't have one. On Vite+, `fix` is `vp check --fix` everywhere, and `check` runs `vp check`. A
- * framework may add its own steps around it, like SvelteKit's `svelte-kit sync` before and
- * `svelte-check` after, but never a second formatter or linter. A separate `lint` or `fmt`
- * script would only repeat half of `check`. `prose` is `prose` alone, which reads the current
- * folder, so `pnpm prose build` passes `build` straight through, and `verify` runs
- * `pnpm prose check`, which fails on what the text gets wrong. The others differ by kind: a package's
- * `build` is `vp pack`, and a site's is `vp build`.
- *
- * Anything else, like a package's `size` or `fuzz`, is the repository's own. Names that are
- * pnpm's own commands are ruled out, since `pnpm <name>` skips a script by that name. A
- * lifecycle script that pnpm runs itself, like base's `prepare`, only generates what a tool
- * needs. A package's `prepack` is `pnpm run build`, so the build command is written once.
- */
-export const SHARED = [
-  "dev",
-  "build",
-  "preview",
-  "check",
-  "fix",
-  "test",
-  "verify",
-  "ship",
-  "prose",
-];
-const BUILT = ["dev", "build"];
-const REQUIRED = ["check", "fix", "verify", "prose"];
-const standardScripts = standard.scripts ?? {};
-const PNPM_COMMANDS = ["deploy", "publish", "audit", "ci", "pipeline", "pack"];
-
-/** @prose
  * # A repository's Worker
  *
  * A repository deploys if it has a Cloudflare config, and the Worker's name is read from it.
@@ -260,17 +200,11 @@ async function release(name: string): Promise<Release> {
 /** @prose
  * # Branch rules
  *
- * Every repository protects `main` with the same ruleset, kept in
- * [.github/ruleset.json](../.github/ruleset.json) and applied by `pnpm align`. GitHub shows a
- * public repository's branch rules to anyone, so the survey reads them without a login. A
+ * GitHub shows a public repository's branch rules to anyone, so the survey reads them without a
+ * login, and `github.rules` compares them with [.github/ruleset.json](../.github/ruleset.json). A
  * `GITHUB_TOKEN`, when set, only raises the rate limit.
- *
- * Each rule in the file has to be there, with the parameters the file sets. Other parameters,
- * and rules the file doesn't name, are the repository's own.
  */
-type Rule = { type: string; parameters?: Record<string, unknown> };
-
-const ruleset = JSON.parse(read(join(here, ".github", "ruleset.json"))) as { rules: Rule[] };
+export type BranchRule = { type: string; parameters?: Record<string, unknown> };
 
 /** @prose
  * # GitHub's rate limit
@@ -279,7 +213,9 @@ const ruleset = JSON.parse(read(join(here, ".github", "ruleset.json"))) as { rul
  * repository, so a handful of runs can use them up. That's not drift: the check says it wasn't
  * made, and doesn't fail `pnpm drift`. `pnpm drift` logs in with `gh` when it can.
  */
-class RateLimit extends Error {}
+class RateLimit extends Error {
+  override name = "RateLimit";
+}
 
 async function github(path: string): Promise<unknown> {
   try {
@@ -303,27 +239,7 @@ function unread(error: Error): Finding {
 }
 
 const branchRules = (repo: string) =>
-  github(`${repo}/rules/branches/main`) as Promise<Rule[] | Error>;
-
-function rulesDrift(found: Rule[]): string[] {
-  if (!found.length) return ["main has no branch rules"];
-  const drift: string[] = [];
-  for (const want of ruleset.rules) {
-    const name = want.type.replaceAll("_", " ");
-    const have = found.find((rule) => rule.type === want.type);
-    if (!have) {
-      drift.push(`no ${name} rule`);
-      continue;
-    }
-    for (const [key, value] of Object.entries(want.parameters ?? {})) {
-      const got = JSON.stringify(have.parameters?.[key]);
-      if (got !== JSON.stringify(value)) {
-        drift.push(`${name}: ${key} is ${got}, not ${JSON.stringify(value)}`);
-      }
-    }
-  }
-  return drift;
-}
+  github(`${repo}/rules/branches/main`) as Promise<BranchRule[] | Error>;
 
 /** @prose
  * # Internal sites
@@ -426,14 +342,14 @@ const ACTIONS = Object.fromEntries(
   ),
 );
 
-type Repo = {
+export type Repo = {
   pkg: Pkg;
   files: Files;
   deps: Record<string, string>;
   vitePlus?: string;
   worker?: Worker;
   // Left out for a folder that isn't on GitHub yet.
-  rules?: Rule[] | Error;
+  rules?: BranchRule[] | Error;
   visibility?: Visibility;
   labels?: string[] | Error;
 };
@@ -448,7 +364,14 @@ type Repo = {
  * package with no site, or the typescript check for a repository without typescript. A check
  * that couldn't be made says why in `unchecked`, with no drift.
  */
-export type Finding = { value?: string; drift: string[]; held?: string; unchecked?: string };
+export type Finding = {
+  value?: string;
+  drift: string[];
+  held?: string;
+  unchecked?: string;
+  // The id of the rule it checks, when the rule has one.
+  rule?: string;
+};
 
 /** @prose
  * # Held
@@ -482,8 +405,36 @@ export type Check = {
   name: string;
   group: "Versions" | "Setup" | "Release";
   rule: string;
+  // Where the standard states it, for a rule with an id.
+  link?: string;
   run: (repo: Repo) => Finding | undefined;
 };
+
+/** @prose
+ * # Rules with an id
+ *
+ * A rule with an id is stated in the standard and checked in [rules.ts](rules.ts). Its check here
+ * is named by its id, and the line the page shows beside it is the rule's first sentence, as the
+ * standard has it, so there's no second wording to keep in step.
+ */
+const statements = new Map(stated().map((s) => [s.id, s]));
+
+function fromRule(rule: Rule): Check {
+  const statement = statements.get(rule.id);
+  return {
+    name: rule.id,
+    group: rule.group,
+    rule: /^(.+?\.)(\s|$)/.exec(statement?.text ?? "")?.[1] ?? "",
+    link: statement?.link,
+    run: (repo) => {
+      const finding = rule.check(repo);
+      return finding && { ...finding, rule: rule.id };
+    },
+  };
+}
+
+const ruled = (prefix: string): Check[] =>
+  RULES.filter((rule) => rule.id.startsWith(prefix)).map(fromRule);
 
 // A shared tool, where a repository uses it, written as this repository writes it.
 const toOurs = (name: string, rule = "ship's, where a repository has it"): Check => ({
@@ -520,25 +471,7 @@ export const CHECKS: Check[] = [
     },
   },
   toOurs("@types/node", "the major of the Node that engines allows, as ship has it"),
-  {
-    name: "pnpm",
-    group: "Versions",
-    rule: `${pnpm}, pinned in devEngines with onFail: download`,
-    run: ({ pkg }) => {
-      const drift: string[] = [];
-      if (pkg.packageManager !== `pnpm@${pnpm}`) {
-        drift.push(`packageManager is ${pkg.packageManager}, not pnpm@${pnpm}`);
-      }
-      const engine = pkg.devEngines?.packageManager;
-      if (engine?.version !== pnpm) {
-        drift.push(`devEngines pins pnpm ${engine?.version}, not ${pnpm}`);
-      }
-      if (engine?.onFail !== "download") {
-        drift.push(`devEngines pnpm onFail is ${engine?.onFail}, not download`);
-      }
-      return { value: pkg.packageManager?.replace(/^pnpm@/, ""), drift };
-    },
-  },
+  ...ruled("versions.pnpm"),
   {
     name: "vite-plus",
     group: "Versions",
@@ -637,55 +570,7 @@ export const CHECKS: Check[] = [
       return { drift };
     },
   },
-  {
-    name: "Scripts",
-    group: "Setup",
-    rule: "the shared names, and none of pnpm's own",
-    run: ({ pkg, vitePlus: own, worker: site }) => {
-      const scripts = pkg.scripts ?? {};
-      // A tool, private and with no site, has nothing to serve or build.
-      const tool = pkg.private && !site;
-      const required = [
-        ...(tool ? [] : BUILT),
-        ...REQUIRED,
-        ...(site ? ["ship"] : []),
-        ...(site && pkg.private ? ["preview"] : []),
-      ];
-      // On Vite+, `fix` is this repository's exactly, and `check` runs `vp check` among any
-      // steps a framework needs.
-      const wrong: string[] = [];
-      if (own && scripts.fix && scripts.fix !== standardScripts.fix) {
-        wrong.push(`fix is ${scripts.fix}, not ${standardScripts.fix}`);
-      }
-      if (own && scripts.check && !/(^|&& )vp check( &&|$)/.test(scripts.check)) {
-        wrong.push(`check doesn't run vp check`);
-      }
-      // prose takes its command before any folder, so `pnpm prose build` works only when the
-      // script is `prose` alone. prose itself runs its own command line.
-      if (scripts.prose && scripts.prose !== "prose" && pkg.name !== "@amitkaps/prose") {
-        wrong.push(`prose is ${scripts.prose}, not prose`);
-      }
-      if (scripts.verify && !/(^|&& )pnpm prose check( &&|$)/.test(scripts.verify)) {
-        wrong.push("verify doesn't run pnpm prose check");
-      }
-      // A site's preview serves its build. A package has no site build to serve.
-      if (scripts.preview && !pkg.private) wrong.push("has a preview script, which is a site's");
-      else if (scripts.preview && scripts.preview !== standardScripts.preview) {
-        wrong.push(`preview is ${scripts.preview}, not ${standardScripts.preview}`);
-      }
-      const drift = [
-        ...required.filter((name) => !scripts[name]).map((name) => `no ${name} script`),
-        ...wrong,
-        ...(own ? ["lint", "fmt"] : [])
-          .filter((name) => scripts[name])
-          .map((name) => `has a ${name} script, which check and fix cover`),
-        ...PNPM_COMMANDS.filter((name) => scripts[name]).map(
-          (name) => `has a ${name} script, which pnpm ${name} never runs`,
-        ),
-      ];
-      return { drift };
-    },
-  },
+  ...ruled("scripts."),
   {
     name: "Cloudflare",
     group: "Setup",
@@ -753,16 +638,7 @@ export const CHECKS: Check[] = [
       return { value: "internal", drift };
     },
   },
-  {
-    name: "Branch rules",
-    group: "Setup",
-    rule: "main takes squashed pull requests that pass ci, from .github/ruleset.json",
-    run: ({ rules }) => {
-      if (!rules) return undefined;
-      if (rules instanceof Error) return unread(rules);
-      return { drift: rulesDrift(rules) };
-    },
-  },
+  ...ruled("github."),
   {
     name: "Actions",
     group: "Setup",
@@ -933,6 +809,9 @@ export async function survey(): Promise<Result[]> {
  * read from GitHub, under the folder's name. Its Worker comes back too, marked internal when it
  * is, so `pnpm drift <folder>` can check its settings.
  */
+/** A folder's files, read as the checks read a repository, for `pnpm align`'s fixes. */
+export const readFolder = (dir: string): Repo => repoOf(fromDisk(dir));
+
 export async function checkFolder(dir: string): Promise<{ findings: Finding[]; worker?: Worker }> {
   const repo = basename(dir);
   const it = repoOf(fromDisk(dir));

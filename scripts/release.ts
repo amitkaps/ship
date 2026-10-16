@@ -18,7 +18,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { OWNER } from "./survey.ts";
+import { OWNER } from "./ship.ts";
 
 const args = process.argv.slice(2);
 const at = args.indexOf("--notes");

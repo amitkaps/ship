@@ -20,7 +20,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { HELD, OWNER, REPOS, TOOLS, catalog, worker } from "./survey.ts";
+import { RULES, fixGitHub } from "./rules.ts";
+import { OWNER } from "./ship.ts";
+import { HELD, REPOS, TOOLS, catalog, readFolder, worker } from "./survey.ts";
 import { cloudflareLogin, githubLogin, writeGitHub, writeWorker } from "./settings.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -153,6 +155,10 @@ async function updateSelf(dir: string, log: string[]): Promise<string[]> {
  * except where a hold says a tool can't move yet, like base's TypeScript. The Vite+ override
  * follows `vite-plus`. The editor settings are this repository's, merged over the repository's
  * own, so a setting it adds, like base's for Svelte, stays.
+ *
+ * Then every rule with a fix in the files, from [rules.ts](rules.ts), fixes what the clone has
+ * drifted on, like `versions.pnpm`. A fix reads the standard from this checkout, not from the
+ * clone `pnpm align` just moved, which is the same for every rule with a fix so far.
  */
 async function alignTo(dir: string, std: string, repo: string, log: string[]): Promise<string[]> {
   const stdPkg = readJson<Pkg>(join(std, "package.json"));
@@ -194,6 +200,13 @@ async function alignTo(dir: string, std: string, repo: string, log: string[]): P
         : { ...ours, ...theirs, ...ours };
     mkdirSync(dirname(path), { recursive: true });
     writeJson(path, merged);
+  }
+
+  // Then each rule with a fix in the files, where the clone has drifted from it and no hold
+  // says it can't move yet.
+  for (const rule of RULES) {
+    if (rule.fix?.in !== "files" || HELD[repo]?.[rule.id]) continue;
+    if (rule.check(readFolder(dir))?.drift.length) rule.fix.apply(dir);
   }
 
   await sh(dir, log, "pnpm", "install");
@@ -285,14 +298,15 @@ async function files(repo: string, std: string): Promise<Outcome> {
 /** @prose
  * # Settings
  *
- * GitHub's settings are written for every repository, and a site's Worker settings when `cf` is
- * logged in. Whether a repository is a package, and the name of its Worker, are read from the
+ * GitHub's settings are written for every repository, with each rule's fix on GitHub, like
+ * `github.rules`, and a site's Worker settings when `cf` is logged in. Whether a repository is a package, and the name of its Worker, are read from the
  * clone, after its pull request, so they're what `main` is about to hold.
  */
 function settings(repo: string): string[] {
   const dir = join(work, repo);
   const pkg = existsSync(join(dir, "package.json")) ? readJson<Pkg>(join(dir, "package.json")) : {};
   writeGitHub(repo, !pkg.private);
+  fixGitHub(repo);
   const files = Object.fromEntries(
     ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"].map((f) => [
       f,

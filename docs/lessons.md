@@ -30,6 +30,8 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **Reading the domains found one the config didn't name.** prose's domain was set only in the dashboard, where a deploy could drop it. Every config names its domains now, and the dashboard links them.
 - **A new column can make the table scroll.** Look at the page at a laptop's width after adding a repository.
 
+- **A rule said in two places drifts in one.** The standard said a rule in words and the survey said it again in a check's label, and the two disagreed. A rule now has an id, like markz's grammar gives its side rules: the standard states it once, as a list item that opens with the id, and `scripts/rules.ts` has only the check and the fix. A test fails if either has an id the other doesn't, and `pnpm drift` prints the id with a link to where it's stated.
+
 ## GitHub and agents
 
 - **Bringing six repositories in line was a script nobody had written.** Each move to a new tool took six hand-made pull requests, and drift only listed them. `pnpm align` makes the edits, runs `verify` and opens the pull requests, with GitHub's settings written in the same run.

@@ -11,11 +11,10 @@
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { OWNER, type Worker, nodeMajor } from "./survey.ts";
+import { join } from "node:path";
+import { OWNER, here, nodeMajor } from "./ship.ts";
+import type { Worker } from "./survey.ts";
 
-const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const json = (file: string): unknown => JSON.parse(readFileSync(join(here, file), "utf8"));
 
 /** @prose
@@ -60,30 +59,18 @@ export function mergeDrift(repo: string): string[] {
  * # Writing GitHub's settings
  *
  * The merge settings come from [.github/settings.json](../.github/settings.json): squash only,
- * branches deleted after merging, and auto-merge on. The branch rules are a ruleset named `main`,
- * from [.github/ruleset.json](../.github/ruleset.json), created or replaced, so writing twice
- * changes nothing. Classic branch protection is removed, so there's one set of rules to read.
+ * branches deleted after merging, and auto-merge on.
  *
  * A package also gets the labels its release notes are grouped by, from
  * [.github/labels.json](../.github/labels.json). Each is created, or updated when it exists, and
  * other labels are left alone.
+ *
+ * The branch rules are `github.rules`'s fix, in [rules.ts](rules.ts), and written by
+ * `writeRuleset` below.
  */
 export function writeGitHub(repo: string, isPackage: boolean): void {
   const api = `repos/${OWNER}/${repo}`;
   gh("api", "--method", "PATCH", api, "--input", join(here, ".github", "settings.json"));
-
-  const ruleset = join(here, ".github", "ruleset.json");
-  const sets = JSON.parse(gh("api", `${api}/rulesets`)) as { id: number; name: string }[];
-  const main = sets.find((set) => set.name === "main");
-  if (main) gh("api", "--method", "PUT", `${api}/rulesets/${main.id}`, "--input", ruleset);
-  else gh("api", "--method", "POST", `${api}/rulesets`, "--input", ruleset);
-
-  // Without classic protection, GitHub answers 404, which is the state we want.
-  try {
-    execFileSync("gh", ["api", "--method", "DELETE", `${api}/branches/main/protection`], {
-      stdio: "ignore",
-    });
-  } catch {}
 
   if (!isPackage) return;
   for (const { name, color, description } of labels) {
@@ -100,6 +87,29 @@ export function writeGitHub(repo: string, isPackage: boolean): void {
       "--force",
     );
   }
+}
+
+/** @prose
+ * # Writing the branch rules
+ *
+ * A ruleset named `main`, from [.github/ruleset.json](../.github/ruleset.json), created or
+ * replaced, so writing twice changes nothing. Classic branch protection is removed, so there's
+ * one set of rules to read.
+ */
+export function writeRuleset(repo: string): void {
+  const api = `repos/${OWNER}/${repo}`;
+  const ruleset = join(here, ".github", "ruleset.json");
+  const sets = JSON.parse(gh("api", `${api}/rulesets`)) as { id: number; name: string }[];
+  const main = sets.find((set) => set.name === "main");
+  if (main) gh("api", "--method", "PUT", `${api}/rulesets/${main.id}`, "--input", ruleset);
+  else gh("api", "--method", "POST", `${api}/rulesets`, "--input", ruleset);
+
+  // Without classic protection, GitHub answers 404, which is the state we want.
+  try {
+    execFileSync("gh", ["api", "--method", "DELETE", `${api}/branches/main/protection`], {
+      stdio: "ignore",
+    });
+  } catch {}
 }
 
 /** @prose

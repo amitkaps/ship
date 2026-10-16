@@ -25,7 +25,9 @@ import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OWNER, VERSIONS } from "./survey.ts";
+import { fixGitHub } from "./rules.ts";
+import { OWNER } from "./ship.ts";
+import { VERSIONS } from "./survey.ts";
 import { writeGitHub } from "./settings.ts";
 
 export type Kind = "package" | "site" | "tool";
@@ -597,6 +599,7 @@ if (import.meta.main) {
       description,
     );
     writeGitHub(name, kind === "package");
+    fixGitHub(name);
   }
 
   const left = [
