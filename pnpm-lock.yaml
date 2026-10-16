@@ -170,11 +170,11 @@ importers:
   .:
     devDependencies:
       '@amitkaps/markz':
-        specifier: ^0.4.1
-        version: 0.4.1
+        specifier: ^0.4.2
+        version: 0.4.2
       '@amitkaps/prose':
-        specifier: ^0.4.1
-        version: 0.4.1
+        specifier: ^0.5.0
+        version: 0.5.0
       '@cloudflare/vite-plugin':
         specifier: 2.0.0-beta.sha-67fa336fd
         version: 2.0.0-beta.sha-67fa336fd(@types/node@26.6.5)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(esbuild@0.28.2))(workerd@1.20261012.1)
@@ -190,12 +190,12 @@ importers:
 
 packages:
 
-  '@amitkaps/markz@0.4.1':
-    resolution: {integrity: sha512-7JZlcN+cE72yUQa++JejqElgoS8h64ZOU1PTiAHVTUWqbSYmA9r3ysYVucYmLYLdsiMDnHMMq50Yd0bot6P0Hg==}
+  '@amitkaps/markz@0.4.2':
+    resolution: {integrity: sha512-oWAoIadwg2bITMJQjiapde66j30498ooVOQKPfQnPPFojF5GL5Z1cii+kh58c2HdKGTi544siGki43FYnc/6GQ==}
     engines: {node: '>=26'}
 
-  '@amitkaps/prose@0.4.1':
-    resolution: {integrity: sha512-CxPLnZpR+b6Bd6JVVzA3KDEnuLKv8SZoY5RAS7nLq1MSo1lFPvsJcNSl3e0b5lO9O1vbRL7TJp1yT47IYxBhXQ==}
+  '@amitkaps/prose@0.5.0':
+    resolution: {integrity: sha512-kXj7tgYqoXebBu/QLnolkPinV+KUQUSnVKJbEvgE/tnHTUheWfi/SGhAFWR2Qk4kPb+86UHE3nL3yXyapGRYxA==}
     engines: {node: '>=26'}
     hasBin: true
 
@@ -1582,9 +1582,9 @@ packages:
 
 snapshots:
 
-  '@amitkaps/markz@0.4.1': {}
+  '@amitkaps/markz@0.4.2': {}
 
-  '@amitkaps/prose@0.4.1': {}
+  '@amitkaps/prose@0.5.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
