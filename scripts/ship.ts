@@ -17,6 +17,7 @@ export const read = (file: string): string => (existsSync(file) ? readFileSync(f
 
 export type Pkg = {
   name?: string;
+  description?: string;
   private?: boolean;
   files?: string[];
   publishConfig?: { access?: string };

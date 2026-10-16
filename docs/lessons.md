@@ -35,6 +35,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **One check for several rules can't say which one drifted.** The Package check held the standard's three bullets on packing, types and bundling, under one label. Each is a rule now, so `pnpm drift` links the one that drifted, and the part that can be fixed, the fields in `package.json`, has a fix of its own.
 - **A fix that edits a file someone wrote anchors on what the standard fixes.** CI's Label step goes before `pnpm install` and the trigger under `pull_request`, lines every repository has. A workflow laid out otherwise is left alone, and its check still drifts, so a fix never guesses.
 - **A pull request took five commands, and a wrong label failed after the push.** Each change here was a commit, `verify`, a push, `gh pr create` and `gh pr merge --auto`, and `--label internal` failed in ship, which has no labels, once the branch was already pushed. `pnpm pr` takes the steps in every repository and checks the label against `.github/release.yml` before it commits, and `AGENTS.md` names it rather than listing them.
+- **A generator and a fixer write the same files twice.** `pnpm new` built the editor settings, the shared `AGENTS.md` sections, the release files and more, and the fixes wrote them again for `pnpm align`. `new` now writes only what's a repository's own and runs the fixes for the rest, so a rule with a fix needs nothing added to `new`. Its test still checks every kind against the survey, which shows what no fix writes yet.
 
 ## GitHub and agents
 
