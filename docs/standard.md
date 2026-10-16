@@ -38,8 +38,6 @@ Every repository has the `.vscode/settings.json` that Vite+ writes, as [this rep
 
 Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a config path, overrides every repository's own, and the editor formats differently from `check`.
 
-base, the SvelteKit starter, left Vite+ for the standalone tools. It goes back, and `pnpm drift` lists it until then.
-
 ## pnpm and Node
 
 `package.json` is the one place for both versions.
@@ -137,6 +135,10 @@ export default defineConfig({
 - **Vite serves the folder.** `.prose` is Vite's `publicDir`. With no `index.html` at the root, the Cloudflare plugin builds an empty entry and deletes it, so only the folder's files are deployed.
 - **`verify` builds it after `prose build`.** In a site, that's `pnpm build`, which is `vp build`. In a package, `build` is `vp pack`, so `verify` ends with `vp build` itself. Anything that adds to the site, like markz's Quality page, runs before it.
 - **`ship` is `cf deploy --prebuilt`.** It uploads `.cloudflare/output/`, which `.gitignore` leaves out.
+
+### An app
+
+A site that needs code on the server starts from base: SvelteKit with `adapter-cloudflare`, which writes a Worker as well as the files. It's kept for when one is needed. cf can't deploy what the adapter writes yet, so base stays on `wrangler.toml` and `wrangler deploy`, held, and its `check` runs `wrangler types` for the Worker's types.
 
 ### Internal sites
 

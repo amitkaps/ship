@@ -4,7 +4,7 @@
 
 ### The docs
 
-Every repository serves its docs on its site, and ship's are at `ship.amitkaps.com/docs/`, so every `AGENTS.md` can link to the standard there. Every repository has the same docs, checked by the survey and written by `pnpm new`, and pagez's design moved to it from sitez.
+Every repository serves its docs on its site, and ship's are at `ship.amitkaps.com/docs/`, so every `AGENTS.md` can link to the standard there. Every repository has the same docs, checked by the survey and written by `pnpm new`, and pagez's design moved to it from sitez. `prose check` runs in every `verify`, so a mistake in a doc stops a merge.
 
 ### Dependencies
 
@@ -12,26 +12,34 @@ pnpm's one-day wait is on everywhere, with our own scope excluded. Versions and 
 
 ### Releases and new repositories
 
-Merging a version bump releases a package, with npm's 2FA approval the one step by hand. `pnpm new` starts a repository that passes from its first commit, and pagez was the first.
+Merging a version bump releases a package, with npm's 2FA approval the one step by hand. A package's pull request needs one release-notes label, and CI fails without it. `pnpm new` starts a repository that passes from its first commit, and pagez was the first.
 
 ### The standard
 
 The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the dashboard check them. `pnpm drift` only reads, and `pnpm align` writes: a pull request for each repository's files, and their GitHub and Worker settings directly. Versions come from this repository, not from npm.
 
+### Sites
+
+ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite hands `.prose` to Cloudflare's plugin, and `cf deploy --prebuilt` uploads it. base is [the app](standard.md#an-app), SvelteKit with `adapter-cloudflare`, kept for a site that needs code on the server. It stays on wrangler until cf can deploy what the adapter writes. Every Worker builds and deploys `main` with the same settings.
+
 ## Next, in order
 
 1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
-2. The static-site pattern, now in the standard as [a prose site](standard.md#a-prose-site). ship's own site deployed this way from `main`, so the holds on markz, prose and sitez are gone and `pnpm drift` lists them. Each moves in a pull request of its own: `cloudflare.config.ts` for `wrangler.toml`, the Vite config, `ship` and `verify`. `pnpm align` moves versions, not configs, so these are by hand. wrangler stays in the catalog while base is on it.
-3. A SvelteKit app on cf, with `adapter-static`, written into the standard once it builds and deploys.
 
 ## Later
 
 - The beta packages move to their releases, when they graduate, as [development](development.md#beta-packages) lists.
+- base moves to cf when SvelteKit's adapter writes cf's Build Output, and wrangler leaves the catalog with it.
+- base moves to TypeScript 7 when svelte-check's peer range takes it.
 
 ## Open questions
 
 - **Pages that aren't the repository.** ship's dashboard is now a doc with empty sections that a script fills after `prose build`, so it has prose's bar and styles. markz's quality page still sits outside prose's frame with no bar. It could become a doc the same way, or prose could take a page for a section, so the trick isn't needed.
 
-- Should a site's docs be checked for the same sections, or only for the files?
+- **A site's docs.** Should they be checked for the same sections, or only for the files?
 
 - **A deploy by hand picks no account.** The login sees two Cloudflare accounts, so `pnpm ship` on a laptop stops and asks for `CLOUDFLARE_ACCOUNT_ID`. Workers Builds isn't affected, and `pnpm align` picks the account by name. The account could go in `cloudflare.config.ts`, or a deploy by hand could stay rare enough to set the variable.
+
+- **The dashboard is only as fresh as ship's last deploy.** It's built when ship deploys, so a change merged in another repository doesn't show until ship merges something. After the AGENTS.md change, it showed four repositories as drifting that had already moved. A daily rebuild, an Actions cron calling a deploy hook, would keep it within a day.
+
+- **A timing test can stop markz's deploy.** markz's first cf build from `main` failed on a linear-time test, 37.1 ms against a 33.4 ms limit, on Cloudflare's build machine, though it passed in CI and locally. `verify` is the build command, so a slow machine blocks a deploy. The timing tests could leave `verify` for CI only, or take more slack.
