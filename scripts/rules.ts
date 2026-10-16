@@ -127,6 +127,12 @@ function rulesDrift(found: BranchRule[]): string[] {
 
 const drifted = (drift: string[]): Finding => ({ drift });
 
+// What GitHub couldn't answer. Its rate limit isn't drift: the check says it wasn't made.
+export function unread(error: Error): Finding {
+  if (error.name === "RateLimit") return { drift: [], unchecked: error.message };
+  return drifted([`GitHub couldn't be read: ${error.message}`]);
+}
+
 const readPkg = (dir: string): Pkg =>
   JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as Pkg;
 const writePkg = (dir: string, pkg: Pkg): void =>
@@ -481,15 +487,71 @@ export const RULES: Rule[] = [
       ),
   },
   {
+    id: "cloudflare.config",
+    check: ({ worker: site }) => {
+      if (!site) return undefined;
+      const drift =
+        site.file === "cloudflare.config.ts" ? [] : [`still on wrangler (${site.file})`];
+      return { value: site.file, drift };
+    },
+  },
+  {
+    id: "cloudflare.wrangler",
+    check: ({ worker: site }) => {
+      if (!site || site.file === "cloudflare.config.ts") return undefined;
+      const drift = site.file === "wrangler.toml" ? [] : [`${site.file}, not wrangler.toml`];
+      return { value: site.file, drift };
+    },
+  },
+  /** @prose
+   * # A prose site on cf
+   *
+   * A site is a prose site when cf deploys it and `verify` runs `pnpm prose build`. The Vite
+   * config is code, so it's read with regular expressions and fixed by hand. `build` after
+   * `prose build` is `pnpm build` in a site, where it's `vp build`, and `vp build` in a
+   * package, where `build` is `vp pack`.
+   */
+  {
+    id: "cloudflare.prose-site",
+    check: ({ files, pkg, worker: site }) => {
+      const verify = pkg.scripts?.verify ?? "";
+      if (site?.file !== "cloudflare.config.ts" || !/pnpm prose build/.test(verify)) {
+        return undefined;
+      }
+      const vite = files["vite.config.ts"] ?? "";
+      const drift: string[] = [];
+      if (!/publicDir:\s*"\.prose"/.test(vite)) drift.push("vite.config.ts doesn't serve .prose");
+      if (!/cloudflare\(\{\s*assetsOnly:\s*true\s*\}\)/.test(vite)) {
+        drift.push("vite.config.ts doesn't use the Cloudflare plugin with assetsOnly");
+      }
+      const after = verify.slice(verify.indexOf("pnpm prose build"));
+      const build = pkg.scripts?.build === "vp build" ? /&& (pnpm build|vp build)/ : /&& vp build/;
+      if (!build.test(after)) drift.push("verify doesn't run vp build after pnpm prose build");
+      if (!/^\/?\.cloudflare\/?$/m.test(files[".gitignore"] ?? "")) {
+        drift.push(".gitignore doesn't ignore .cloudflare");
+      }
+      return { value: "prose", drift };
+    },
+  },
+  {
+    id: "cloudflare.internal",
+    // A public repository's site is checked only when its config turns workers.dev off, since
+    // that's the config saying it's internal.
+    check: ({ worker: site, visibility: seen }) => {
+      if (!site) return undefined;
+      if (seen instanceof Error && site.workersDev) return unread(seen);
+      if (seen !== "private" && site.workersDev) return undefined;
+      const drift: string[] = [];
+      if (site.workersDev) drift.push(`${site.file} doesn't turn off workers.dev`);
+      if (site.previewUrls) drift.push(`${site.file} doesn't turn off preview URLs`);
+      return { value: "internal", drift };
+    },
+  },
+  {
     id: "github.rules",
     check: ({ rules }) => {
       if (!rules) return undefined;
-      // GitHub's rate limit isn't drift: the check says it wasn't made.
-      if (rules instanceof Error && rules.name === "RateLimit") {
-        return { drift: [], unchecked: rules.message };
-      }
-      if (rules instanceof Error) return drifted([`GitHub couldn't be read: ${rules.message}`]);
-      return drifted(rulesDrift(rules));
+      return rules instanceof Error ? unread(rules) : drifted(rulesDrift(rules));
     },
     fix: { in: "github", apply: writeRuleset },
   },

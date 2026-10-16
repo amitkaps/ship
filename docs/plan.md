@@ -27,7 +27,7 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 1. Move the other checks to rules with ids, one part of the standard in each pull request, with its words in the standard and, where it can, a fix. Tick a part in the pull request that moves it.
    - [x] Versions: Node, pnpm and the shared tools
    - [x] Toolchain: Types, Lint, Editor, and the cooldown in `pnpm-workspace.yaml`
-   - [ ] Cloudflare: the config, a prose site, wrangler, internal sites
+   - [x] Cloudflare: the config, a prose site, wrangler, internal sites
    - [ ] GitHub, Agents and Docs: Actions, `AGENTS.md`, the docs
    - [ ] Releases: the release workflow, the package, the labels
 2. Add `pnpm pr` and `pnpm gone` to every repository, as shared scripts with a rule each.

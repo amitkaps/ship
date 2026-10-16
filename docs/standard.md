@@ -124,7 +124,8 @@ A lifecycle script, one pnpm runs on its own like `prepare` on install or `prepa
 
 A repository with a site deploys it to a Cloudflare Worker with static assets.
 
-- **Config:** `cloudflare.config.ts`, cf's typed config, is the target. A repository that cf can't deploy yet keeps `wrangler.toml`, never `wrangler.jsonc`, since prose reads comments in TOML but not in JSONC. Either way, the file holds the Worker's name, compatibility date, domain and asset handling.
+- `cloudflare.config`: a site deploys with `cloudflare.config.ts`, cf's typed config. It holds the Worker's name, compatibility date, domain and asset handling.
+- `cloudflare.wrangler`: a site cf can't deploy yet keeps `wrangler.toml`, never `wrangler.jsonc`. prose reads comments in TOML but not in JSONC.
 - **Deploys:** the Worker's Git integration (Workers Builds) builds and deploys `main`. There's no deploy step in GitHub Actions, and no API token or secret.
 - **The Worker's settings** are the same on every Worker. Cloudflare's config has no field for them, so `pnpm align` writes them with `cf`, and `pnpm drift` checks them when `cf` is logged in. Only connecting the Worker to its repository is left to the dashboard.
 
@@ -150,9 +151,9 @@ export default defineConfig({
 });
 ```
 
-- **Vite serves the folder.** `.prose` is Vite's `publicDir`. With no `index.html` at the root, the Cloudflare plugin builds an empty entry and deletes it, so only the folder's files are deployed.
-- **`verify` builds it after `prose build`.** In a site, that's `pnpm build`, which is `vp build`. In a package, `build` is `vp pack`, so `verify` ends with `vp build` itself. Anything that adds to the site, like markz's Quality page, runs before it.
-- **`ship` is `cf deploy --prebuilt`.** It uploads `.cloudflare/output/`, which `.gitignore` leaves out.
+- `cloudflare.prose-site`: a prose site serves `.prose` as Vite's `publicDir` through the Cloudflare plugin with `assetsOnly`, `verify` builds it after `prose build`, and `.gitignore` leaves out `.cloudflare`. With no `index.html` at the root, the plugin builds an empty entry and deletes it, so only the folder's files are deployed.
+
+In a site, the build after `prose build` is `pnpm build`, which is `vp build`. In a package, `build` is `vp pack`, so `verify` ends with `vp build` itself. Anything that adds to the site, like markz's Quality page, runs before it. `ship` is `cf deploy --prebuilt`, which uploads `.cloudflare/output/`.
 
 ### An app
 
@@ -160,11 +161,10 @@ A site that needs code on the server starts from base: SvelteKit with `adapter-c
 
 ### Internal sites
 
-A private repository's site is internal. It deploys like any other site, and three things keep it private.
+A private repository's site is internal. It deploys like any other site, and two things keep it private.
 
 - **Access covers its domain.** A Cloudflare Access application on the site's domain, with a policy that lets in only who it's for. Access is turned on once per account, in the Zero Trust dashboard.
-- **`workers.dev` is off.** Access covers the domain, not the Worker, so `<name>.<account>.workers.dev` would serve the same site without a login. The config sets `workersDev: false`.
-- **Preview URLs are off, always.** Each would be another address outside Access. The config sets `previewUrls: false`, and the Worker's previews stay off.
+- `cloudflare.internal`: an internal site's config turns off `workers.dev` and preview URLs. Access covers the domain, not the Worker, so `<name>.<account>.workers.dev` would serve the same site without a login, and each preview URL would be another address outside it. The Worker's previews stay off too.
 
 ```ts
 worker: {
@@ -175,7 +175,7 @@ worker: {
 },
 ```
 
-The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without the rest. With `cf` logged in, it also checks that an Access application with a policy covers the domain.
+The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without turning off preview URLs. With `cf` logged in, it also checks that an Access application with a policy covers the domain.
 
 ## GitHub
 
