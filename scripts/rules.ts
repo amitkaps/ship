@@ -15,8 +15,8 @@
  * on every one. A fix in `github` is written directly, since there's no file to review. A rule
  * with no fix is fixed by hand, as the standard says.
  */
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
 import { writeRuleset } from "./settings.ts";
 import type { BranchRule, Finding, Repo } from "./survey.ts";
@@ -165,6 +165,44 @@ const node = standard.devEngines?.runtime;
 const vitePlus = VERSIONS["vite-plus"];
 const OVERRIDE = /vite-plus-core@[\w.-]+/;
 
+/** @prose
+ * # The toolchain
+ *
+ * A tsconfig's options and the lint block are found by regular expressions rather than by
+ * parsing, since a tsconfig can hold comments, base's extends the one SvelteKit generates, and
+ * `vite.config.ts` is code. Neither has a fix, since editing either means reading it. The
+ * options this repository sets for itself, like `noEmit`, aren't checked.
+ *
+ * The editor settings are compared one key at a time, and only this repository's keys, since a
+ * repository can add its own, like base's for Svelte. Its fix merges this repository's over the
+ * repository's own, so an added setting stays.
+ */
+const STRICT = [
+  "strict",
+  "noUncheckedIndexedAccess",
+  "noImplicitOverride",
+  "noImplicitReturns",
+  "noFallthroughCasesInSwitch",
+  "verbatimModuleSyntax",
+  "isolatedModules",
+  "forceConsistentCasingInFileNames",
+];
+
+const EDITOR = [".vscode/settings.json", ".vscode/extensions.json"];
+type Json = Record<string, unknown>;
+const readJson = (file: string): Json => JSON.parse(readFileSync(file, "utf8")) as Json;
+const editor = Object.fromEntries(EDITOR.map((file) => [file, readJson(join(here, file))]));
+const recommended = (json: Json): string[] =>
+  Array.isArray(json.recommendations) ? (json.recommendations as string[]) : [];
+
+/** @prose
+ * # The cooldown
+ *
+ * pnpm's one-day wait is its default, so a repository keeps it by not setting
+ * `minimumReleaseAge`. The fix removes that line and writes this repository's exclusions.
+ */
+const EXCLUDE = /^minimumReleaseAgeExclude:\n(?:[ \t]+-.*\n?)*/m;
+
 export const RULES: Rule[] = [
   {
     id: "versions.node",
@@ -259,6 +297,102 @@ export const RULES: Rule[] = [
   version("versions.cf-vite-plugin", "@cloudflare/vite-plugin"),
   version("versions.wrangler", "wrangler"),
   version("versions.publint", "publint"),
+  {
+    id: "versions.cooldown",
+    check: ({ files }) => {
+      const workspace = files["pnpm-workspace.yaml"] ?? "";
+      const drift: string[] = [];
+      const age = /^minimumReleaseAge:\s*(\S+)/m.exec(workspace)?.[1];
+      if (age) drift.push(`sets minimumReleaseAge to ${age}, not pnpm's default`);
+      const exclude = EXCLUDE.exec(workspace)?.[0] ?? "";
+      const names = [...exclude.matchAll(/-\s*"?([^"\n]+)"?/g)].map((m) => m[1]?.trim());
+      if (!names.includes("@amitkaps/*")) drift.push("doesn't exclude @amitkaps/*");
+      for (const name of names.filter((n) => n !== "@amitkaps/*")) {
+        drift.push(`excludes ${name}`);
+      }
+      return drifted(drift);
+    },
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        const file = join(dir, "pnpm-workspace.yaml");
+        const want = EXCLUDE.exec(read(join(std, "pnpm-workspace.yaml")))?.[0];
+        let text = read(file).replace(/^minimumReleaseAge:.*\n?/m, "");
+        if (want) {
+          text = EXCLUDE.test(text)
+            ? text.replace(EXCLUDE, want)
+            : `${text.trimEnd()}\n\n${want.trimEnd()}\n`;
+        }
+        writeFileSync(file, text);
+      },
+    },
+  },
+  {
+    id: "toolchain.types",
+    check: ({ files }) => {
+      const tsconfig = files["tsconfig.json"];
+      if (!tsconfig) return drifted(["no tsconfig.json"]);
+      return drifted(
+        STRICT.filter((flag) => !new RegExp(`"${flag}"\\s*:\\s*true`).test(tsconfig)).map(
+          (flag) => `tsconfig.json doesn't set ${flag}`,
+        ),
+      );
+    },
+  },
+  {
+    id: "toolchain.lint",
+    check: ({ files, vitePlus: own }) => {
+      // Without Vite+ there's no lint block to read, and versions.vite-plus already says so.
+      if (!own) return undefined;
+      const vite = files["vite.config.ts"] ?? "";
+      const drift: string[] = [];
+      if (!/typeAware:\s*true/.test(vite)) drift.push("lint isn't type-aware");
+      if (!/typeCheck:\s*true/.test(vite)) drift.push("lint doesn't type-check");
+      return drifted(drift);
+    },
+  },
+  {
+    id: "toolchain.editor",
+    check: ({ files }) =>
+      drifted(
+        EDITOR.flatMap((file) => {
+          const text = files[file];
+          if (!text) return [`no ${file}`];
+          let have: Json;
+          try {
+            have = JSON.parse(text) as Json;
+          } catch {
+            return [`${file} isn't plain JSON`];
+          }
+          const want = editor[file] ?? {};
+          // One line says the file differs, since the fix writes this repository's keys at once.
+          const same = file.endsWith("extensions.json")
+            ? recommended(want).every((name) => recommended(have).includes(name))
+            : Object.keys(want).every(
+                (key) => JSON.stringify(have[key]) === JSON.stringify(want[key]),
+              );
+          return same ? [] : [`${file} differs from ship's`];
+        }),
+      ),
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        for (const file of EDITOR) {
+          const ours = readJson(join(std, file));
+          const path = join(dir, file);
+          const theirs = existsSync(path) ? readJson(path) : {};
+          const merged = file.endsWith("extensions.json")
+            ? {
+                ...theirs,
+                recommendations: [...new Set([...recommended(ours), ...recommended(theirs)])],
+              }
+            : { ...theirs, ...ours };
+          mkdirSync(dirname(path), { recursive: true });
+          writeFileSync(path, JSON.stringify(merged, null, 2) + "\n");
+        }
+      },
+    },
+  },
   {
     id: "scripts.required",
     check: ({ pkg, worker: site }) => {

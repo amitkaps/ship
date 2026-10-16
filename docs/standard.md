@@ -22,7 +22,12 @@ One `vite.config.ts`, run through `vp`, covers dev, build, format, lint and test
 
 Vite+ ships its own build of Vite. Each repository points every `vite` at it with an override in `pnpm-workspace.yaml`, and turns off pnpm's peer checks for `vite`, since that build is an npm alias. Bump `vite-plus` and the override together, in every repository at once. A version that differs between repositories is the drift that makes Vite+ painful.
 
-Formatting runs at oxfmt's defaults, written as an empty `fmt: {}` so the config says so. Lint is type-aware and type-checks too, so `check` covers types without a separate `tsc`:
+Formatting runs at oxfmt's defaults, written as an empty `fmt: {}` so the config says so.
+
+- `toolchain.lint`: lint is type-aware and type-checks too, so `check` covers types without a separate `tsc`.
+- `toolchain.types`: every `tsconfig.json` turns on the same strict options: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules` and `forceConsistentCasingInFileNames`. This repository's [tsconfig.json](../tsconfig.json) is the example. The rest of a tsconfig, like `include` and `types`, is the repository's own.
+
+The lint block in `vite.config.ts`:
 
 ```ts
 lint: {
@@ -32,11 +37,11 @@ lint: {
 },
 ```
 
-The types come from `tsconfig.json`, and every one turns on the same strict options: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules` and `forceConsistentCasingInFileNames`. This repository's [tsconfig.json](../tsconfig.json) is the example. The rest of a tsconfig, like `include` and `types`, is the repository's own.
-
 ### The editor
 
-Every repository has the `.vscode/settings.json` that Vite+ writes, as [this repository's](../.vscode/settings.json), and a `.vscode/extensions.json`. The check reports each file as one line when it differs, since `pnpm align` copies this repository's settings in whole. The settings make oxc the formatter, on save, with its fixes. The extensions recommended are oxc's and Vitest's, by name, rather than Vite+'s extension pack, which only wraps the two and could add more without a change here. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`. A repository can add settings of its own, like base's for Svelte.
+- `toolchain.editor`: every repository has this repository's [.vscode/settings.json](../.vscode/settings.json), the one Vite+ writes, and recommends the extensions its `.vscode/extensions.json` does. A repository can add settings of its own, like base's for Svelte, and `pnpm align` keeps them when it writes this repository's.
+
+The settings make oxc the formatter, on save, with its fixes. The extensions recommended are oxc's and Vitest's, by name, rather than Vite+'s extension pack, which only wraps the two and could add more without a change here. The oxc extension then runs the repository's own `vp fmt` and `vp lint`, so the editor formats with the oxfmt Vite+ pins and the `fmt` block in `vite.config.ts`, the same as `check`.
 
 Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a config path, overrides every repository's own, and the editor formats differently from `check`.
 
@@ -74,7 +79,9 @@ The tools every repository shares are on one version, written the same way, so m
 
 A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 
-`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: pnpm's one-day wait on a new version, with `@amitkaps/*` excluded so our own releases install at once, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
+`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: the cooldown, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
+
+- `versions.cooldown`: pnpm's one-day wait on a new version is kept, with only `@amitkaps/*` excluded. A bad release can be caught before it's installed, and our own skip the wait, since each reaches npm only after the owner approves it.
 
 ## Held
 

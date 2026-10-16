@@ -15,7 +15,7 @@
  * pull request.
  */
 import { execFile } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -154,32 +154,11 @@ async function updateSelf(dir: string, log: string[]): Promise<string[]> {
  * Every rule with a fix in the files, from [rules.ts](rules.ts), fixes the clone, like
  * `versions.typescript`, except where a hold says it can't move yet, like base's TypeScript. A
  * fix reads the standard from `std`, the clone of this repository when `pnpm align` just moved
- * it, so the others take its new versions. A fix changes nothing that's in line already. The
- * editor settings are this repository's, merged over the repository's own, so a setting it adds,
- * like base's for Svelte, stays.
+ * it, so the others take its new versions. A fix changes nothing that's in line already.
  */
 async function alignTo(dir: string, std: string, repo: string, log: string[]): Promise<string[]> {
   for (const rule of RULES) {
     if (rule.fix?.in === "files" && !HELD[repo]?.[rule.id]) rule.fix.apply(dir, std);
-  }
-
-  for (const name of ["settings.json", "extensions.json"]) {
-    const ours = readJson<Record<string, unknown>>(join(std, ".vscode", name));
-    const path = join(dir, ".vscode", name);
-    const theirs = existsSync(path) ? readJson<Record<string, unknown>>(path) : {};
-    const merged =
-      name === "extensions.json"
-        ? {
-            recommendations: [
-              ...new Set([
-                ...((ours.recommendations as string[]) ?? []),
-                ...((theirs.recommendations as string[]) ?? []),
-              ]),
-            ],
-          }
-        : { ...ours, ...theirs, ...ours };
-    mkdirSync(dirname(path), { recursive: true });
-    writeJson(path, merged);
   }
 
   await sh(dir, log, "pnpm", "install");

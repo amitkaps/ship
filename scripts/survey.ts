@@ -68,39 +68,6 @@ async function fromGitHub(repo: string): Promise<Files> {
 }
 
 /** @prose
- * # The type checks
- *
- * The compiler options every `tsconfig.json` turns on, beyond what a repository's own build
- * needs. Each is found by a regular expression rather than by parsing, since a tsconfig can hold
- * comments, and base's extends the one SvelteKit generates. The options this repository sets
- * for itself, like `noEmit` and `allowImportingTsExtensions`, aren't checked.
- */
-const STRICT = [
-  "strict",
-  "noUncheckedIndexedAccess",
-  "noImplicitOverride",
-  "noImplicitReturns",
-  "noFallthroughCasesInSwitch",
-  "verbatimModuleSyntax",
-  "isolatedModules",
-  "forceConsistentCasingInFileNames",
-];
-
-/** @prose
- * # The editor
- *
- * Every repository has the `.vscode/` settings Vite+ writes, and recommends oxc's and Vitest's
- * extensions, as this one does. The settings make the editor format with oxc and run the
- * repository's own `vp`, so a file saved in the editor is
- * formatted by the same oxfmt, with the same config, as `check`. A repository can add settings
- * of its own, like base's for Svelte, so only this one's are compared, each to the same value.
- */
-const EDITOR = [".vscode/settings.json", ".vscode/extensions.json"];
-const editor = Object.fromEntries(
-  EDITOR.map((file) => [file, JSON.parse(read(join(here, file))) as Record<string, unknown>]),
-);
-
-/** @prose
  * # A repository's Worker
  *
  * A repository deploys if it has a Cloudflare config, and the Worker's name is read from it.
@@ -405,80 +372,7 @@ const ruled = (prefix: string): Check[] =>
 
 const listed: Check[] = [
   ...ruled("versions."),
-  {
-    name: "Types",
-    group: "Toolchain: Vite+",
-    rule: "tsconfig.json turns on the strict options",
-    run: ({ files }) => {
-      const tsconfig = files["tsconfig.json"];
-      if (!tsconfig) return { drift: ["no tsconfig.json"] };
-      const drift = STRICT.filter(
-        (flag) => !new RegExp(`"${flag}"\\s*:\\s*true`).test(tsconfig),
-      ).map((flag) => `tsconfig.json doesn't set ${flag}`);
-      return { drift };
-    },
-  },
-  {
-    name: "Lint",
-    group: "Toolchain: Vite+",
-    rule: "type-aware lint that also type-checks",
-    run: ({ files, vitePlus: own }) => {
-      // Without Vite+ there's no lint block to read, and the vite-plus check already says so.
-      if (!own) return undefined;
-      const vite = files["vite.config.ts"] ?? "";
-      const drift: string[] = [];
-      if (!/typeAware:\s*true/.test(vite)) drift.push("lint isn't type-aware");
-      if (!/typeCheck:\s*true/.test(vite)) drift.push("lint doesn't type-check");
-      return { drift };
-    },
-  },
-  {
-    name: "Editor",
-    group: "Toolchain: Vite+",
-    rule: "the .vscode settings Vite+ writes, and the oxc and Vitest extensions, as ship has them",
-    run: ({ files }) => {
-      const drift = EDITOR.flatMap((file) => {
-        const text = files[file];
-        if (!text) return [`no ${file}`];
-        let have: Record<string, unknown>;
-        try {
-          have = JSON.parse(text) as Record<string, unknown>;
-        } catch {
-          return [`${file} isn't plain JSON`];
-        }
-        const want = editor[file] ?? {};
-        // A repository can add settings and recommendations of its own, so only ship's are
-        // compared. One line says the file differs, since align copies ship's in whole.
-        const same = Array.isArray(want.recommendations)
-          ? want.recommendations.every(
-              (name) => Array.isArray(have.recommendations) && have.recommendations.includes(name),
-            )
-          : Object.keys(want).every(
-              (key) => JSON.stringify(have[key]) === JSON.stringify(want[key]),
-            );
-        return same ? [] : [`${file} differs from ship's`];
-      });
-      return { drift };
-    },
-  },
-  {
-    name: "Cooldown",
-    group: "Other versions",
-    rule: "pnpm's wait on a new version, with only our own scope excluded",
-    run: ({ files }) => {
-      const workspace = files["pnpm-workspace.yaml"] ?? "";
-      const drift: string[] = [];
-      const age = /^minimumReleaseAge:\s*(\S+)/m.exec(workspace)?.[1];
-      if (age) drift.push(`sets minimumReleaseAge to ${age}, not pnpm's default`);
-      const exclude = /^minimumReleaseAgeExclude:\n((?:\s+-.*\n?)*)/m.exec(workspace)?.[1] ?? "";
-      const names = [...exclude.matchAll(/-\s*"?([^"\n]+)"?/g)].map((m) => m[1]?.trim());
-      if (!names.includes("@amitkaps/*")) drift.push("doesn't exclude @amitkaps/*");
-      for (const name of names.filter((n) => n !== "@amitkaps/*")) {
-        drift.push(`excludes ${name}`);
-      }
-      return { drift };
-    },
-  },
+  ...ruled("toolchain."),
   ...ruled("scripts."),
   {
     name: "Cloudflare",
