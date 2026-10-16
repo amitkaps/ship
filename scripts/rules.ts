@@ -17,7 +17,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
+import { OWNER, type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
 import { writeLabels, writeRuleset } from "./settings.ts";
 import type { BranchRule, Finding, Repo } from "./survey.ts";
 
@@ -210,6 +210,8 @@ const recommended = (json: Json): string[] =>
  * `minimumReleaseAge`. The fix removes that line and writes this repository's exclusions.
  */
 const EXCLUDE = /^minimumReleaseAgeExclude:\n(?:[ \t]+-.*\n?)*/m;
+// The block with the comment above it, for a repository that has neither.
+const COMMENTED = /^(?:#.*\n)*minimumReleaseAgeExclude:\n(?:[ \t]+-.*\n?)*/m;
 
 /** @prose
  * # The actions
@@ -247,8 +249,125 @@ const agents = read(join(here, "AGENTS.md"));
  * # The docs
  *
  * Only the files are checked, and that each is in the `nav` of `docs/README.md`, not what's in
- * them, so there's no fix: a doc is written, not copied.
+ * them. The fix writes a first version of each one that's missing, which says what goes in each
+ * section rather than leaving it empty, and adds it to the `nav`. A doc already there is left
+ * alone, since it's written, not copied. `pnpm new` starts every doc this way. A README that
+ * doesn't link to `docs/` is fixed by hand.
  */
+export type Kind = "package" | "site" | "tool";
+
+// What a folder is: a package unless it's private, then a site if it has a Worker's config.
+function kindOf(dir: string, pkg: Pkg): Kind {
+  if (!pkg.private) return "package";
+  const site = ["cloudflare.config.ts", "wrangler.jsonc", "wrangler.toml"];
+  return site.some((file) => existsSync(join(dir, file))) ? "site" : "tool";
+}
+
+function firstDocs(name: string, kind: Kind, description: string): Record<string, string> {
+  const standard = "https://ship.amitkaps.com/docs/standard.md";
+  type Page = [file: string, title: string, what: string];
+  const usage: Page = ["usage.md", "Usage", "install it, use it, and the snippet for agents."];
+  const pages: Page[] = [
+    ["design.md", "Design", "what it is, why it's built this way, and what it isn't."],
+    ...(kind === "package" ? [usage] : []),
+    ["plan.md", "Plan", "what's done and what's next, in order."],
+    ["lessons.md", "Lessons", "what building it taught, for the next change."],
+    [
+      "development.md",
+      "Development",
+      {
+        site: "build, test and deploy it.",
+        package: "build, test and release it.",
+        tool: "check and test it.",
+      }[kind],
+    ],
+  ];
+  const files: Record<string, string> = {
+    "docs/README.md": `---
+nav: [${pages.map(([file]) => file).join(", ")}]
+---
+
+# Docs
+
+The writing that spans the code, in reading order.
+
+${pages.map(([file, title, what], i) => `${i + 1}. [${title}](${file}): ${what}`).join("\n")}
+`,
+    "docs/design.md": `# Design
+
+## What it is
+
+${description}
+
+## Why
+
+Why it's built this way, and the choices that follow from that.
+
+## What it isn't
+
+What it leaves out on purpose, so nobody adds it back.
+`,
+    "docs/plan.md": `# Plan
+
+## Where it is
+
+### Started
+
+It follows [ship's standard](${standard}).
+
+## Next, in order
+
+1. The first thing ${name} does.
+
+## Later
+
+## Open questions
+`,
+    "docs/lessons.md": `# Lessons
+
+What building ${name} taught, for whoever changes it next. Each lesson says what happened and what to do about it.
+`,
+    "docs/development.md": `# Development
+
+How ${name} is built and changed. What every repository shares, like the scripts${
+      { site: ", CI and deploys", package: ", CI and releases", tool: " and CI" }[kind]
+    }, is in [ship's standard](${standard}), and isn't repeated here.
+
+## Build and test
+
+\`\`\`sh
+pnpm install${kind === "tool" ? "" : "\npnpm dev"}
+pnpm verify    # what CI runs
+\`\`\`
+`,
+  };
+  if (kind === "package") {
+    files["docs/usage.md"] = `# Usage
+
+## Install
+
+\`\`\`sh
+pnpm add @${OWNER}/${name}
+\`\`\`
+
+It needs Node 26 or newer, the Node it's built and tested on.
+
+## Use
+
+\`\`\`ts
+import { hello } from "@${OWNER}/${name}";
+
+hello("world"); // "Hello, world."
+\`\`\`
+
+## For agents
+
+What an agent using ${name} should know, as a snippet to copy into its instructions.
+`;
+  }
+  return files;
+}
+
 const DOCS = ["design.md", "plan.md", "development.md", "lessons.md"];
 const nav = (text: string): string[] =>
   (/^nav:\s*\[([^\]]*)\]/m.exec(text)?.[1] ?? "")
@@ -285,6 +404,17 @@ function addLabel(ci: string): string {
   }
   return text;
 }
+
+// Sets a script to the standard's, in a repository the rule applies to.
+function setScript(dir: string, std: string, name: string, applies: (pkg: Pkg) => boolean): void {
+  const pkg = readPkg(dir);
+  const want = readPkg(std).scripts?.[name];
+  if (!want || !applies(pkg)) return;
+  pkg.scripts = { ...pkg.scripts, [name]: want };
+  writePkg(dir, pkg);
+}
+const onVitePlus = (pkg: Pkg): boolean =>
+  Boolean(pkg.dependencies?.["vite-plus"] ?? pkg.devDependencies?.["vite-plus"]);
 
 /** @prose
  * # A shared script
@@ -435,12 +565,14 @@ export const RULES: Rule[] = [
       in: "files",
       apply: (dir, std) => {
         const file = join(dir, "pnpm-workspace.yaml");
-        const want = EXCLUDE.exec(read(join(std, "pnpm-workspace.yaml")))?.[0];
+        const ours = read(join(std, "pnpm-workspace.yaml"));
+        const want = EXCLUDE.exec(ours)?.[0];
+        const commented = COMMENTED.exec(ours)?.[0] ?? want;
         let text = read(file).replace(/^minimumReleaseAge:.*\n?/m, "");
-        if (want) {
+        if (want && commented) {
           text = EXCLUDE.test(text)
             ? text.replace(EXCLUDE, want)
-            : `${text.trimEnd()}\n\n${want.trimEnd()}\n`;
+            : `${text.trimEnd()}\n\n${commented.trimEnd()}\n`;
         }
         writeFileSync(file, text);
       },
@@ -544,6 +676,7 @@ export const RULES: Rule[] = [
         fix === standardScripts.fix ? [] : [`fix is ${fix}, not ${standardScripts.fix}`],
       );
     },
+    fix: { in: "files", apply: (dir, std) => setScript(dir, std, "fix", onVitePlus) },
   },
   {
     id: "scripts.one-checker",
@@ -575,6 +708,10 @@ export const RULES: Rule[] = [
       // prose's own repository runs its command line from source.
       if (!prose || pkg.name === "@amitkaps/prose") return undefined;
       return drifted(prose === "prose" ? [] : [`prose is ${prose}, not prose`]);
+    },
+    fix: {
+      in: "files",
+      apply: (dir, std) => setScript(dir, std, "prose", (pkg) => pkg.name !== "@amitkaps/prose"),
     },
   },
   {
@@ -756,6 +893,27 @@ export const RULES: Rule[] = [
       }
       return drifted(drift);
     },
+    fix: {
+      in: "files",
+      apply: (dir) => {
+        const pkg = readPkg(dir);
+        const name = (pkg.name ?? "").replace(/^@[^/]+\//, "");
+        const first = firstDocs(name, kindOf(dir, pkg), pkg.description ?? "");
+        const index = join(dir, "docs", "README.md");
+        const had = read(index);
+        mkdirSync(join(dir, "docs"), { recursive: true });
+        for (const [file, text] of Object.entries(first)) {
+          if (!existsSync(join(dir, file))) writeFileSync(join(dir, file), text);
+        }
+        // An index that was there keeps its words, and gains the docs its nav was missing.
+        const listed = nav(had);
+        const missing = nav(first["docs/README.md"] ?? "").filter((n) => !listed.includes(n));
+        if (had && missing.length && /^nav:\s*\[/m.test(had)) {
+          const all = [...listed, ...missing].join(", ");
+          writeFileSync(index, had.replace(/^nav:\s*\[[^\]]*\]/m, `nav: [${all}]`));
+        }
+      },
+    },
   },
   {
     id: "releases.files",
@@ -859,6 +1017,12 @@ export const RULES: Rule[] = [
     },
   },
 ];
+
+/** Applies every fix in the files, but the held ones, for `pnpm align` and `pnpm new`. */
+export function fixFiles(dir: string, std: string, held: Record<string, string> = {}): void {
+  for (const rule of RULES)
+    if (rule.fix?.in === "files" && !held[rule.id]) rule.fix.apply(dir, std);
+}
 
 /** Applies every fix that's written on GitHub, for `pnpm align` and `pnpm new --push`. */
 export function fixGitHub(repo: string, pkg: Pkg): void {

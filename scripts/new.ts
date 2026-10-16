@@ -9,12 +9,15 @@
  * next to this one, installs, formats, runs `verify` and makes the first commit, so what it hands over
  * already passes.
  *
- * Nothing here is a template. Each file is built from this repository's own: the versions,
- * engines and scripts from `package.json`, the strict options from `tsconfig.json`, the `lint`
- * block from `vite.config.ts`, the Vite+ override, the editor settings, CI, the shared sections of `AGENTS.md`, and a
- * package's release files from `package/`. The docs are the outline the standard names. A tool this repository doesn't use, like publint, is
- * at the version in its `catalog`, as the survey wants. So a change to the standard reaches the next repository
- * with no second copy to update, and `pnpm test` checks what it writes against the survey.
+ * It writes only what's the new repository's own: its name and description, its source, the
+ * Vite config for its kind, and CI. Then it runs every fix in [rules.ts](rules.ts), the same ones
+ * `pnpm align` runs, and they write the rest: the versions and engines, the shared scripts, the
+ * editor settings, the cooldown, the shared sections of `AGENTS.md`, a package's release files,
+ * and a first version of each doc. So it can't follow the standard any less than `align` does,
+ * and a rule's fix reaches the next repository with no second copy here. What it does write is
+ * built from this repository's own files where it can be, like the strict options from
+ * `tsconfig.json` and the `lint` block from `vite.config.ts`, and `pnpm test` checks the result
+ * against the survey.
  *
  * `--push` also creates the repository on GitHub, pushes the first commit and writes its GitHub
  * settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the
@@ -22,14 +25,14 @@
  * Access or npm's setup, which have no API to do them from here.
  */
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { fixGitHub } from "./rules.ts";
+import { type Kind, fixFiles, fixGitHub } from "./rules.ts";
 import { OWNER, VERSIONS } from "./ship.ts";
 import { writeGitHub } from "./settings.ts";
 
-export type Kind = "package" | "site" | "tool";
+export type { Kind };
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file: string): string => readFileSync(join(here, file), "utf8");
@@ -37,18 +40,8 @@ const read = (file: string): string => readFileSync(join(here, file), "utf8");
 type Pkg = {
   scripts: Record<string, string>;
   devDependencies: Record<string, string>;
-  devEngines: unknown;
-  engines: unknown;
-  packageManager: string;
 };
 const ship = JSON.parse(read("package.json")) as Pkg;
-
-// The two shared sections of this repository's `AGENTS.md`, word for word.
-function sections(): string {
-  const text = read("AGENTS.md");
-  const from = text.indexOf("## Standard");
-  return text.slice(from, text.indexOf("\n## ", text.indexOf("## Prose"))).trim();
-}
 
 // A block of `vite.config.ts` or `pnpm-workspace.yaml`, as this repository has it.
 function block(text: string, pattern: RegExp): string {
@@ -67,11 +60,6 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
     Object.fromEntries(tools.map((tool) => [tool, ship.devDependencies[tool]]));
   const scripts = (...names: string[]) =>
     Object.fromEntries(names.map((script) => [script, ship.scripts[script]]));
-  const shared = {
-    devEngines: ship.devEngines,
-    engines: ship.engines,
-    packageManager: ship.packageManager,
-  };
 
   if (kind === "site") {
     return JSON.stringify(
@@ -82,15 +70,14 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         type: "module",
         // ship's own verify also builds its prose site, which a new site doesn't have.
         scripts: {
-          ...scripts("dev", "build", "preview", "check", "fix"),
+          ...scripts("dev", "build", "preview", "check"),
           verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
-          ...scripts("ship", "prose", "pr", "gone"),
+          ...scripts("ship"),
         },
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
           ...ours("@cloudflare/vite-plugin", "@types/node", "cf", "vite-plus"),
         },
-        ...shared,
       },
       null,
       2,
@@ -104,15 +91,13 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         description,
         type: "module",
         scripts: {
-          ...scripts("check", "fix", "test"),
+          ...scripts("check", "test"),
           verify: "pnpm check && pnpm prose check && pnpm test",
-          ...scripts("prose", "pr", "gone"),
         },
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
           ...ours("@types/node", "vite-plus"),
         },
-        ...shared,
       },
       null,
       2,
@@ -125,29 +110,22 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
       description,
       license: "MIT",
       repository: { type: "git", url: `git+https://github.com/${OWNER}/${name}.git` },
-      files: ["dist"],
       type: "module",
       exports: {
         ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
         "./package.json": "./package.json",
       },
-      publishConfig: { access: "public" },
       scripts: {
-        prepack: "pnpm run build",
         dev: "vp pack --watch",
         build: "vp pack",
-        ...scripts("check", "fix"),
+        ...scripts("check"),
         test: "vp test --run",
-        ...scripts("prose", "pr", "gone"),
         verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
       },
       devDependencies: {
         "@amitkaps/prose": npm("@amitkaps/prose"),
-        ...ours("@types/node"),
-        publint: npm("publint"),
-        ...ours("vite-plus"),
+        ...ours("@types/node", "vite-plus"),
       },
-      ...shared,
     },
     null,
     2,
@@ -169,12 +147,7 @@ function workspace(kind: Kind): string {
     "# pnpm 12 reads project settings from here. It's a settings file, not a workspace, and its",
     "# settings are the standard's, from ship.",
   ].join("\n");
-  const parts = [
-    header,
-    pick("minimumReleaseAgeExclude"),
-    ...(kind === "site" ? [pick("allowBuilds")] : []),
-    pick("overrides"),
-  ];
+  const parts = [header, ...(kind === "site" ? [pick("allowBuilds")] : []), pick("overrides")];
   return parts.join("\n\n");
 }
 
@@ -296,8 +269,6 @@ function agents(name: string, description: string): string {
 
 ${intro}
 
-${sections()}
-
 ## This repository
 
 - Nothing yet beyond the standard. What's particular to ${name} goes here.
@@ -319,117 +290,6 @@ Read [the docs](docs/README.md) for its design, plan and lessons. It follows [sh
     ]
   }.
 `;
-}
-
-/** @prose
- * # The docs
- *
- * The docs every repository has, each a first version to write over. They say what goes in each
- * section rather than leaving it empty, so the outline is there from the first commit.
- */
-function docs(name: string, kind: Kind, description: string): Record<string, string> {
-  const standard = "https://ship.amitkaps.com/docs/standard.md";
-  type Page = [file: string, title: string, what: string];
-  const usage: Page = ["usage.md", "Usage", "install it, use it, and the snippet for agents."];
-  const pages: Page[] = [
-    ["design.md", "Design", "what it is, why it's built this way, and what it isn't."],
-    ...(kind === "package" ? [usage] : []),
-    ["plan.md", "Plan", "what's done and what's next, in order."],
-    ["lessons.md", "Lessons", "what building it taught, for the next change."],
-    [
-      "development.md",
-      "Development",
-      {
-        site: "build, test and deploy it.",
-        package: "build, test and release it.",
-        tool: "check and test it.",
-      }[kind],
-    ],
-  ];
-  const files: Record<string, string> = {
-    "docs/README.md": `---
-nav: [${pages.map(([file]) => file).join(", ")}]
----
-
-# Docs
-
-The writing that spans the code, in reading order.
-
-${pages.map(([file, title, what], i) => `${i + 1}. [${title}](${file}): ${what}`).join("\n")}
-`,
-    "docs/design.md": `# Design
-
-## What it is
-
-${description}
-
-## Why
-
-Why it's built this way, and the choices that follow from that.
-
-## What it isn't
-
-What it leaves out on purpose, so nobody adds it back.
-`,
-    "docs/plan.md": `# Plan
-
-## Where it is
-
-### ${kind === "package" ? "0.0.0" : "Started"}
-
-Started from [ship's standard](${standard}), with \`pnpm new\`.
-
-## Next, in order
-
-1. The first thing ${name} does.
-
-## Later
-
-## Open questions
-`,
-    "docs/lessons.md": `# Lessons
-
-What building ${name} taught, for whoever changes it next. Each lesson says what happened and what to do about it.
-`,
-    "docs/development.md": `# Development
-
-How ${name} is built and changed. What every repository shares, like the scripts${
-      { site: ", CI and deploys", package: ", CI and releases", tool: " and CI" }[kind]
-    }, is in [ship's standard](${standard}), and isn't repeated here.
-
-## Build and test
-
-\`\`\`sh
-pnpm install${kind === "tool" ? "" : "\npnpm dev"}
-pnpm verify    # what CI runs
-\`\`\`
-`,
-  };
-  if (kind === "package") {
-    files["docs/usage.md"] = `# Usage
-
-## Install
-
-\`\`\`sh
-pnpm add @${OWNER}/${name}
-\`\`\`
-
-It needs Node 26 or newer, the Node it's built and tested on.
-
-## Use
-
-\`\`\`ts
-import { hello } from "@${OWNER}/${name}";
-
-hello("world"); // "Hello, world."
-\`\`\`
-
-## For agents
-
-What an agent using ${name} should know, as a snippet to copy into its instructions.
-`;
-  }
-  return files;
 }
 
 function cloudflareConfig(name: string, internal: boolean): string {
@@ -511,16 +371,10 @@ export async function write(
     "vite.config.ts": viteConfig(kind),
     ".github/workflows/ci.yml": ci(kind),
     "AGENTS.md": agents(name, description),
-    "CLAUDE.md": "@AGENTS.md\n",
     "README.md": readme(name, kind, description),
     ".gitignore": read(".gitignore"),
-    ".vscode/settings.json": read(".vscode/settings.json"),
-    ".vscode/extensions.json": read(".vscode/extensions.json"),
     // An internal repository isn't shared, so it has no licence to share it under.
     ...(internal ? {} : { LICENSE: read("LICENSE") }),
-    "scripts/pr.ts": read("scripts/pr.ts"),
-    "scripts/gone.ts": read("scripts/gone.ts"),
-    ...docs(name, kind, description),
   };
   if (kind === "site") {
     files["cloudflare.config.ts"] = cloudflareConfig(name, internal);
@@ -533,8 +387,7 @@ export async function write(
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     writeFileSync(join(dir, file), text);
   }
-  if (kind === "package")
-    cpSync(join(here, "package", ".github"), join(dir, ".github"), { recursive: true });
+  fixFiles(dir, here);
 }
 
 if (import.meta.main) {

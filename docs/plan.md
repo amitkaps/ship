@@ -12,7 +12,7 @@ pnpm's one-day wait is on everywhere, with our own scope excluded. Versions and 
 
 ### Releases and new repositories
 
-Merging a version bump releases a package, with npm's 2FA approval the one step by hand. A package's pull request needs one release-notes label, and CI fails without it. `pnpm new` starts a repository that passes from its first commit, and pagez was the first.
+Merging a version bump releases a package, with npm's 2FA approval the one step by hand. A package's pull request needs one release-notes label, and CI fails without it. `pnpm new` starts a repository that passes from its first commit, by writing its own files and running every fix `pnpm align` runs, and pagez was the first.
 
 ### The standard
 
@@ -24,9 +24,8 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 
 ## Next, in order
 
-1. Build `pnpm new` from the fixes, so a new repository is an empty one with every fix applied, and the generator can't follow the standard any less than `pnpm align` does.
-2. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
-3. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
+1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
+2. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
 
 ## Later
 

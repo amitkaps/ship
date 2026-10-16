@@ -8,7 +8,7 @@ ship is the one way every repository builds, checks, deploys and releases, and t
 
 Each repository used to make the same choices on its own, and they drifted: four ways of protecting `main`, three copies of one release workflow, one script name running two commands. A choice made once, here, is paid for once. A change starts here, and the survey lists every repository to bring in line, so nothing depends on remembering.
 
-The standard is read from this repository's own files, not written out twice. The versions come from its `package.json`, the strict options from its `tsconfig.json`, and the release workflow from [package/](../package/README.md). So the example can't disagree with the rule, and `pnpm new` builds a repository from the same files.
+The standard is read from this repository's own files, not written out twice. The versions come from its `package.json`, the strict options from its `tsconfig.json`, and the release workflow from [package/](../package/README.md). So the example can't disagree with the rule, and `pnpm new` builds a repository from the same files, through the same fixes `pnpm align` runs.
 
 ## What it isn't
 

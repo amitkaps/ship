@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { RULES, fixGitHub } from "./rules.ts";
+import { fixFiles, fixGitHub } from "./rules.ts";
 import { OWNER, TOOLS, catalog } from "./ship.ts";
 import { HELD, REPOS, worker } from "./survey.ts";
 import { cloudflareLogin, githubLogin, writeGitHub, writeWorker } from "./settings.ts";
@@ -157,9 +157,7 @@ async function updateSelf(dir: string, log: string[]): Promise<string[]> {
  * it, so the others take its new versions. A fix changes nothing that's in line already.
  */
 async function alignTo(dir: string, std: string, repo: string, log: string[]): Promise<string[]> {
-  for (const rule of RULES) {
-    if (rule.fix?.in === "files" && !HELD[repo]?.[rule.id]) rule.fix.apply(dir, std);
-  }
+  fixFiles(dir, std, HELD[repo]);
 
   await sh(dir, log, "pnpm", "install");
   return update(dir, log, [...TOOLS, "vite-plus"]);

@@ -217,7 +217,7 @@ Every repository has the same docs, so anyone, or any agent, finds the same thin
 
 The README is the site's home page when prose builds it, so it reads as one: what it is, a short example, and the commands a user runs, like a package's command or this repository's `drift`. The repository's own scripts, like `dev` and `verify`, are the standard's, and are left to `development.md`, which links the standard for the shared toolchain, scripts and workflows rather than describing them.
 
-A site has no `usage.md`, since the site is what people use, unless it has commands to run, as this repository does. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `pnpm new` writes a first version of each.
+A site has no `usage.md`, since the site is what people use, unless it has commands to run, as this repository does. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `docs.files`'s fix writes a first version of each one that's missing, and adds it to the `nav`, so `pnpm new` starts with all of them.
 
 The docs are published at `/docs/<file>.md`, so a link to one works on GitHub and on the site alike.
 
@@ -265,7 +265,7 @@ A pull request's title is its line in the notes, so a user-facing one is written
 
 ### Setting up a new package
 
-`pnpm new` copies in `package/`'s files, and `pnpm align <repo>` makes the labels. A package that isn't on npm yet doesn't release on a merge, since npm trusts the workflow only once the package exists. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
+`pnpm new` copies in `package/`'s files, through `releases.files`'s fix, and `pnpm align <repo>` makes the labels. A package that isn't on npm yet doesn't release on a merge, since npm trusts the workflow only once the package exists. On npmjs.com, add a trusted publisher for the repository and the workflow `release.yml`, with direct publishing and dist-tags left unchecked, so staging is all it can do. npm may not take that before the package exists. Then publish the first version by hand, from a folder outside the repository, since `npm` refuses to run where `devEngines` names pnpm.
 
 ```sh
 pnpm pack && cd /tmp && npm login && npm publish ~/code/<repo>/amitkaps-<repo>-<version>.tgz --access public
@@ -313,6 +313,6 @@ pnpm new <name> --tool --internal --description "What it is, in a sentence." --p
 
 `--internal` makes a site or a tool private on GitHub and leaves it out of `REPOS`, and an internal site's config turns off `workers.dev` and preview URLs. The Access application is the step left to do by hand.
 
-It builds each file from this repository's own, not from a template: the versions, engines and scripts, the strict types and lint, the Vite+ override, CI, the shared `AGENTS.md` sections, and a package's release files. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and writes its GitHub settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
+It writes only what's the repository's own: its name and description, its source, the Vite config and strict types for its kind, and CI, each built from this repository's files rather than a template. Then it runs every rule's fix, the ones `pnpm align` runs, which write the rest: the versions and engines, the shared scripts, the editor settings, the cooldown, the shared `AGENTS.md` sections, a package's release files and packing, and a first version of each doc. So a new repository can't follow the standard any less than `align` makes an old one. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and writes its GitHub settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
 
-`pnpm test` here generates a package and a site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.
+`pnpm test` here generates a package, a site, a tool and an internal site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.
