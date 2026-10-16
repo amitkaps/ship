@@ -216,7 +216,7 @@ There's no changelog file. Each pull request carries one label, which files it u
 | `docs`     | Documentation      | documentation readers use                      |
 | `internal` | left out           | tests, tooling, site and lessons               |
 
-A pull request's title is its line in the notes, so a user-facing one is written for the package's users. One with no label falls under Other, so a missed label shows.
+A pull request's title is its line in the notes, so a user-facing one is written for the package's users. `ci` fails until a package's pull request has exactly one of these labels, and adding one runs it again, so a release's notes are right when it's tagged, not fixed after. A site or a tool has no release notes, so its pull requests need no label.
 
 ### Setting up a new package
 
@@ -230,7 +230,7 @@ The next merge that changes `package.json` finds that version on npm with no tag
 
 ## CI
 
-GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It installs with `pnpm install --frozen-lockfile` and runs `pnpm run verify`, plus whatever a package adds, like publint or a size budget. The `main` ruleset requires `ci`. Cloudflare's own check on each commit isn't required, since it runs after the merge.
+GitHub Actions runs one job, named `ci`, on pull requests and on `main`. It installs with `pnpm install --frozen-lockfile` and runs `pnpm run verify`, plus whatever a package adds, like publint or a size budget. In a package, it first checks the pull request has one [release-notes label](#release-notes), and it runs again when a label changes. The `main` ruleset requires `ci`. Cloudflare's own check on each commit isn't required, since it runs after the merge.
 
 ## Repositories
 

@@ -353,6 +353,8 @@ async function visibility(repo: string): Promise<Visibility> {
  * releases the same way, with the files in [package/](../package/README.md) copied in unchanged,
  * and labels its pull requests with the labels in [.github/labels.json](../.github/labels.json),
  * which its release notes are grouped by. GitHub shows a public repository's labels to anyone.
+ * Its CI has this repository's `Label` step, word for word, and runs again when a label changes,
+ * so a pull request without one label can't merge.
  *
  * A package bundles our other packages rather than depending on them, so each releases on its
  * own and a user never installs two versions that disagree.
@@ -361,6 +363,9 @@ const RELEASE_FILES = [".github/workflows/release.yml", ".github/release.yml"];
 const released = Object.fromEntries(
   RELEASE_FILES.map((file) => [file, read(join(here, "package", file))]),
 );
+const ciFile = read(join(here, ".github", "workflows", "ci.yml"));
+const LABEL_STEP = /^ {6}- name: Label\n[\s\S]*?\n {10}'\n/m.exec(ciFile)?.[0] ?? "";
+const LABEL_TRIGGER = /^ {4}types: \[.*labeled.*\]$/m.exec(ciFile)?.[0] ?? "";
 const labelNames = (
   JSON.parse(read(join(here, ".github", "labels.json"))) as { name: string }[]
 ).map((label) => label.name);
@@ -788,13 +793,16 @@ export const CHECKS: Check[] = [
   {
     name: "Release workflow",
     group: "Release",
-    rule: "a package's release.yml and notes config are ship's, word for word",
+    rule: "a package's release.yml and notes config are ship's, word for word, and CI wants a label",
     run: ({ pkg, files }) => {
       if (pkg.private) return undefined;
       const drift = RELEASE_FILES.flatMap((file) => {
         if (!files[file]) return [`no ${file}`];
         return files[file] === released[file] ? [] : [`${file} differs from ship's`];
       });
+      const ci = files[".github/workflows/ci.yml"] ?? "";
+      if (!ci.includes(LABEL_STEP)) drift.push("ci.yml doesn't have ship's Label step");
+      if (!ci.includes(LABEL_TRIGGER)) drift.push("ci.yml doesn't run again when a label changes");
       return { drift };
     },
   },
