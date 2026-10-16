@@ -26,8 +26,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fixGitHub } from "./rules.ts";
-import { OWNER } from "./ship.ts";
-import { VERSIONS } from "./survey.ts";
+import { OWNER, VERSIONS } from "./ship.ts";
 import { writeGitHub } from "./settings.ts";
 
 export type Kind = "package" | "site" | "tool";

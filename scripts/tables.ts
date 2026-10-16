@@ -96,7 +96,7 @@ const inline = (text: string): string =>
 const label = (check: Check): string =>
   check.link ? `<a href="${check.link}"><code>${check.name}</code></a>` : check.name;
 
-// A group's heading goes above its first check, so versions and setup read as two sections.
+// A part's heading goes above its first check, so the table reads in the standard's parts.
 function checksTable(results: Result[]): string {
   const rows = CHECKS.map(
     (check, i) =>
