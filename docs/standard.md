@@ -104,6 +104,8 @@ Every repository uses these names, and runs them with `pnpm run …` in anything
 | `verify`  | `check`, `prose check`, `test` and `build`, then the site if there is one |
 | `ship`    | uploads what `verify` built: `cf deploy --prebuilt`, or `wrangler deploy` |
 | `prose`   | reads the repository as a document: `prose`, so `pnpm prose build` works  |
+| `pr`      | opens a pull request that merges itself once CI passes                    |
+| `gone`    | deletes the local branches that merged                                    |
 
 - `scripts.required`: `check`, `fix`, `verify` and `prose` are in every repository, `dev` and `build` in every site and package, and `ship` in every site. A tool has nothing to serve or build, so its `verify` is `check`, `prose check` and `test`. `test` is there when there are tests.
 - `scripts.check`: on Vite+, `check` runs `vp check`. A framework can add its own steps around it, like SvelteKit's `svelte-kit sync` before and `svelte-check` after.
@@ -112,6 +114,8 @@ Every repository uses these names, and runs them with `pnpm run …` in anything
 - `scripts.verify`: `verify` runs `pnpm prose check`. It fails on what the text gets wrong, which `prose build` only prints, so a mistake in a doc or a comment stops a merge the way a lint error does.
 - `scripts.prose`: `prose` is exactly `prose`, so `pnpm prose build` works. prose's own repository runs its command line from source.
 - `scripts.preview`: `preview` is a site's, the same as this repository's. A package, whose build is `dist/`, has none.
+- `scripts.pr`: `pr` is `node scripts/pr.ts`, and [scripts/pr.ts](../scripts/pr.ts) is this repository's, word for word. `pnpm pr "<title>"` starts a branch when it's on `main`, commits, runs `verify`, pushes, opens the pull request and turns on auto-merge. A package's pull request takes `--label <label>`, and stops without one, before anything is committed. `--wait` waits for the merge, then switches to `main` and pulls.
+- `scripts.gone`: `gone` is `node scripts/gone.ts`, and [scripts/gone.ts](../scripts/gone.ts) is this repository's, word for word. It deletes each local branch whose branch on GitHub is gone, which is each one that merged, and works where no git alias is set, like an agent's machine.
 - `scripts.pnpm-names`: no script is named `deploy`, `publish`, `audit`, `ci`, `pipeline` or `pack`. Those are pnpm's own commands, and `pnpm <name>` skips a script by one of those names.
 
 Text the repository didn't write, like a test corpus or a fixture that's wrong on purpose, is marked `linguist-vendored` in `.gitattributes`, and `prose check` skips it. Any other script is the repository's own, like a package's `size` or `fuzz`. The dashboard lists every script side by side, so two repositories using one name for different jobs shows up.

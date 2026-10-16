@@ -84,7 +84,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         scripts: {
           ...scripts("dev", "build", "preview", "check", "fix"),
           verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
-          ...scripts("ship", "prose"),
+          ...scripts("ship", "prose", "pr", "gone"),
         },
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
@@ -106,7 +106,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         scripts: {
           ...scripts("check", "fix", "test"),
           verify: "pnpm check && pnpm prose check && pnpm test",
-          ...scripts("prose"),
+          ...scripts("prose", "pr", "gone"),
         },
         devDependencies: {
           "@amitkaps/prose": npm("@amitkaps/prose"),
@@ -138,7 +138,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         build: "vp pack",
         ...scripts("check", "fix"),
         test: "vp test --run",
-        ...scripts("prose"),
+        ...scripts("prose", "pr", "gone"),
         verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
       },
       devDependencies: {
@@ -518,6 +518,8 @@ export async function write(
     ".vscode/extensions.json": read(".vscode/extensions.json"),
     // An internal repository isn't shared, so it has no licence to share it under.
     ...(internal ? {} : { LICENSE: read("LICENSE") }),
+    "scripts/pr.ts": read("scripts/pr.ts"),
+    "scripts/gone.ts": read("scripts/gone.ts"),
     ...docs(name, kind, description),
   };
   if (kind === "site") {

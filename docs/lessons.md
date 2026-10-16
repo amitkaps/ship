@@ -34,6 +34,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **A fix that sets the standard's value can run on every repository.** `pnpm align` had its own code to move the shared versions. Each version rule's fix now does it, reading the standard from the folder `align` just moved, and changes nothing in a repository already in line, so `align` runs every fix without checking first.
 - **One check for several rules can't say which one drifted.** The Package check held the standard's three bullets on packing, types and bundling, under one label. Each is a rule now, so `pnpm drift` links the one that drifted, and the part that can be fixed, the fields in `package.json`, has a fix of its own.
 - **A fix that edits a file someone wrote anchors on what the standard fixes.** CI's Label step goes before `pnpm install` and the trigger under `pull_request`, lines every repository has. A workflow laid out otherwise is left alone, and its check still drifts, so a fix never guesses.
+- **A pull request took five commands, and a wrong label failed after the push.** Each change here was a commit, `verify`, a push, `gh pr create` and `gh pr merge --auto`, and `--label internal` failed in ship, which has no labels, once the branch was already pushed. `pnpm pr` takes the steps in every repository and checks the label against `.github/release.yml` before it commits, and `AGENTS.md` names it rather than listing them.
 
 ## GitHub and agents
 
@@ -53,7 +54,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **Supporting an older Node than we build on took a workaround.** pnpm won't run on a Node older than `devEngines`, so testing on 24 meant switching Node after the install. With no users on 24, `engines` became `>=26`. If a package gains some, that job is how to test it.
 - **Pushing a tag by hand was the step that went wrong.** A branch named `v0.4.0` made the tag's push ambiguous. The workflow tags the merged commit itself, the bump branch is `release-X.Y.Z`, and npm's 2FA approval is the one step by hand. `pnpm release` opens the pull request with the owner's login, since GitHub runs no CI on one a workflow's token opens.
 - **Bundling our own packages removes the release order.** A package with markz as a dev dependency puts it in `dist/`, so it depends on nothing at install and releases at any time.
-- **A label checked at release time is checked too late.** prose's v0.5.0 notes were all Other until the labels were added by hand. A package's `ci` fails without exactly one label, and every `AGENTS.md` says which to pass to `gh pr create`.
+- **A label checked at release time is checked too late.** prose's v0.5.0 notes were all Other until the labels were added by hand. A package's `ci` fails without exactly one label, and every `AGENTS.md` says which to pass to `pnpm pr`, which stops without one.
 
 ## New repositories
 

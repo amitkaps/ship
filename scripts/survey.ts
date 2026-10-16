@@ -44,6 +44,8 @@ const FILES = [
   "docs/development.md",
   "docs/lessons.md",
   "docs/usage.md",
+  "scripts/pr.ts",
+  "scripts/gone.ts",
 ];
 
 type Files = Record<string, string>;

@@ -13,6 +13,8 @@
     "verify": "pnpm check && pnpm prose check && pnpm test && pnpm prose build && pnpm dashboard && pnpm build",
     "ship": "cf deploy --prebuilt",
     "prose": "prose",
+    "pr": "node scripts/pr.ts",
+    "gone": "node scripts/gone.ts",
     "drift": "node scripts/drift.ts",
     "align": "node scripts/align.ts",
     "release": "node scripts/release.ts",
