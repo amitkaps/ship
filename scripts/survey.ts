@@ -172,7 +172,8 @@ const editor = Object.fromEntries(
  * framework may add its own steps around it, like SvelteKit's `svelte-kit sync` before and
  * `svelte-check` after, but never a second formatter or linter. A separate `lint` or `fmt`
  * script would only repeat half of `check`. `prose` is `prose` alone, which reads the current
- * folder, so `pnpm prose build` passes `build` straight through. The others differ by kind: a package's
+ * folder, so `pnpm prose build` passes `build` straight through, and `verify` runs
+ * `pnpm prose check`, which fails on what the text gets wrong. The others differ by kind: a package's
  * `build` is `vp pack`, and a site's is `vp build`.
  *
  * Anything else, like a package's `size` or `fuzz`, is the repository's own. Names that are
@@ -665,6 +666,9 @@ export const CHECKS: Check[] = [
       // script is `prose` alone. prose itself runs its own command line.
       if (scripts.prose && scripts.prose !== "prose" && pkg.name !== "@amitkaps/prose") {
         wrong.push(`prose is ${scripts.prose}, not prose`);
+      }
+      if (scripts.verify && !/(^|&& )pnpm prose check( &&|$)/.test(scripts.verify)) {
+        wrong.push("verify doesn't run pnpm prose check");
       }
       // A site's preview serves its build. A package has no site build to serve.
       if (scripts.preview && !pkg.private) wrong.push("has a preview script, which is a site's");
