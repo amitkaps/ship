@@ -15,7 +15,7 @@
  * on every one. A fix in `github` is written directly, since there's no file to review. A rule
  * with no fix is fixed by hand, as the standard says.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
 import { writeRuleset } from "./settings.ts";
@@ -208,6 +208,51 @@ const recommended = (json: Json): string[] =>
  * `minimumReleaseAge`. The fix removes that line and writes this repository's exclusions.
  */
 const EXCLUDE = /^minimumReleaseAgeExclude:\n(?:[ \t]+-.*\n?)*/m;
+
+/** @prose
+ * # The actions
+ *
+ * The versions are read from this repository's CI and a package's release workflow. Only the
+ * versions are compared, since a repository can add steps of its own, like sitez installing its
+ * packed tarball. The fix rewrites each `uses:` line to this repository's version, and removes a
+ * `dependabot.yml`, since versions move here first.
+ */
+const WORKFLOWS = [".github/workflows/ci.yml", ".github/workflows/release.yml"];
+const USES = /(uses:\s*)([^@\s]+)@(\S+)/g;
+const actionVersions = (text: string): [string, string][] =>
+  [...text.matchAll(USES)].map((m) => [m[2] ?? "", m[3] ?? ""]);
+const ACTIONS = Object.fromEntries(
+  actionVersions(
+    read(join(here, WORKFLOWS[0] ?? "")) + read(join(here, "package", WORKFLOWS[1] ?? "")),
+  ),
+);
+
+/** @prose
+ * # The agents' instructions
+ *
+ * A section runs from its `## ` heading to the next. The fix writes this repository's two
+ * sections over a repository's own, or puts them before its first section when they're
+ * missing, and leaves the rest of the file alone.
+ */
+const SECTIONS = ["Standard", "Prose"];
+const sectionOf = (heading: string): RegExp =>
+  new RegExp(`^## ${heading}\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m");
+const section = (text: string, heading: string): string | undefined =>
+  sectionOf(heading).exec(text)?.[1]?.trim();
+const agents = read(join(here, "AGENTS.md"));
+
+/** @prose
+ * # The docs
+ *
+ * Only the files are checked, and that each is in the `nav` of `docs/README.md`, not what's in
+ * them, so there's no fix: a doc is written, not copied.
+ */
+const DOCS = ["design.md", "plan.md", "development.md", "lessons.md"];
+const nav = (text: string): string[] =>
+  (/^nav:\s*\[([^\]]*)\]/m.exec(text)?.[1] ?? "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
 
 export const RULES: Rule[] = [
   {
@@ -554,6 +599,93 @@ export const RULES: Rule[] = [
       return rules instanceof Error ? unread(rules) : drifted(rulesDrift(rules));
     },
     fix: { in: "github", apply: writeRuleset },
+  },
+  {
+    id: "github.actions",
+    check: ({ files }) => {
+      const drift: string[] = [];
+      for (const file of WORKFLOWS) {
+        for (const [action, version] of actionVersions(files[file] ?? "")) {
+          const want = ACTIONS[action];
+          if (want && version !== want) drift.push(`${action} is ${version}, not ${want}`);
+        }
+      }
+      if (files[".github/dependabot.yml"]) drift.push("has a dependabot.yml");
+      return drifted([...new Set(drift)]);
+    },
+    fix: {
+      in: "files",
+      apply: (dir) => {
+        for (const file of WORKFLOWS) {
+          const path = join(dir, file);
+          const text = read(path);
+          if (!text) continue;
+          writeFileSync(
+            path,
+            text.replace(USES, (line: string, uses: string, action: string) =>
+              ACTIONS[action] ? `${uses}${action}@${ACTIONS[action]}` : line,
+            ),
+          );
+        }
+        rmSync(join(dir, ".github", "dependabot.yml"), { force: true });
+      },
+    },
+  },
+  {
+    id: "agents.sections",
+    check: ({ files }) => {
+      const text = files["AGENTS.md"];
+      if (!text) return drifted(["no AGENTS.md"]);
+      const drift = SECTIONS.flatMap((heading) => {
+        const have = section(text, heading);
+        if (!have) return [`no ${heading} section`];
+        return have === section(agents, heading) ? [] : [`${heading} section differs from ship's`];
+      });
+      if (files["CLAUDE.md"]?.trim() !== "@AGENTS.md") drift.push("CLAUDE.md isn't @AGENTS.md");
+      return drifted(drift);
+    },
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        const ours = read(join(std, "AGENTS.md"));
+        const path = join(dir, "AGENTS.md");
+        let text = read(path) || "# AGENTS.md\n";
+        let after = -1;
+        for (const heading of SECTIONS) {
+          const want = sectionOf(heading).exec(ours)?.[0];
+          if (!want) continue;
+          const block = `${want.trimEnd()}\n\n`;
+          const have = sectionOf(heading).exec(text);
+          // A missing section goes after the one before it, or before the file's first section.
+          const at = have?.index ?? (after >= 0 ? after : text.search(/^## /m));
+          const end = have ? at + have[0].length : at;
+          text =
+            at < 0 ? `${text.trimEnd()}\n\n${block}` : text.slice(0, at) + block + text.slice(end);
+          after = (at < 0 ? text.length - block.length : at) + block.length;
+        }
+        writeFileSync(path, `${text.trimEnd()}\n`);
+        writeFileSync(join(dir, "CLAUDE.md"), "@AGENTS.md\n");
+      },
+    },
+  },
+  {
+    id: "docs.files",
+    check: ({ pkg, files }) => {
+      const want = pkg.private ? DOCS : [...DOCS, "usage.md"];
+      const index = files["docs/README.md"];
+      const drift = want.filter((name) => !files[`docs/${name}`]).map((name) => `no docs/${name}`);
+      if (!index) drift.push("no docs/README.md");
+      else {
+        const listed = nav(index);
+        for (const name of want.filter((n) => files[`docs/${n}`] && !listed.includes(n))) {
+          drift.push(`${name} isn't in the nav`);
+        }
+      }
+      if (!/\]\(\.?\/?docs\//.test(files["README.md"] ?? "")) {
+        drift.push("README.md doesn't link to docs/");
+      }
+      return drifted(drift);
+    },
   },
 ];
 

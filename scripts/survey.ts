@@ -216,56 +216,6 @@ async function repoLabels(repo: string): Promise<string[] | Error> {
   return found instanceof Error ? found : found.map((label) => label.name);
 }
 
-/** @prose
- * # The agents' instructions
- *
- * Every `AGENTS.md` opens with the same two sections, word for word as in this repository's:
- * "Standard", which points at this standard, and "Prose", which points at prose's rules. The
- * rules themselves live in one place each and aren't copied, so they can't drift. What's below
- * those sections is the repository's own. A `CLAUDE.md` that says `@AGENTS.md` makes Claude
- * Code read the same file.
- */
-const SECTIONS = ["Standard", "Prose"];
-
-function section(text: string, heading: string): string | undefined {
-  const found = new RegExp(`^## ${heading}\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m").exec(text);
-  return found?.[1]?.trim();
-}
-
-const agents = read(join(here, "AGENTS.md"));
-
-/** @prose
- * # The docs
- *
- * Every repository has the same docs in `docs/`, and a package has `usage.md` too. Each is listed
- * in the `nav` of `docs/README.md`, which sets the reading order on GitHub and on the site, and
- * the README links to the docs. Only the files are checked, not what's in them.
- */
-const DOCS = ["design.md", "plan.md", "development.md", "lessons.md"];
-
-const nav = (text: string): string[] =>
-  (/^nav:\s*\[([^\]]*)\]/m.exec(text)?.[1] ?? "")
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-
-/** @prose
- * # The actions
- *
- * Every workflow uses the actions at the versions this repository's do, read from its CI and
- * release workflows. A repository can add steps of its own, like sitez installing its packed
- * tarball, so the workflows aren't compared word for word, only the versions. They move here
- * first, like every other version, so nothing else bumps them, and Dependabot isn't set up.
- */
-const actionVersions = (text: string): [string, string][] =>
-  [...text.matchAll(/uses:\s*([^@\s]+)@(\S+)/g)].map((m) => [m[1] ?? "", m[2] ?? ""]);
-
-const ACTIONS = Object.fromEntries(
-  actionVersions(
-    read(join(here, ".github", "workflows", "ci.yml")) + released[".github/workflows/release.yml"],
-  ),
-);
-
 export type Repo = {
   pkg: Pkg;
   files: Files;
@@ -371,58 +321,8 @@ const listed: Check[] = [
   ...ruled("scripts."),
   ...ruled("cloudflare."),
   ...ruled("github."),
-  {
-    name: "Actions",
-    group: "GitHub",
-    rule: "workflows use ship's action versions, and nothing else bumps them",
-    run: ({ files }) => {
-      const drift: string[] = [];
-      for (const file of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
-        for (const [action, version] of actionVersions(files[file] ?? "")) {
-          const want = ACTIONS[action];
-          if (want && version !== want) drift.push(`${action} is ${version}, not ${want}`);
-        }
-      }
-      if (files[".github/dependabot.yml"]) drift.push("has a dependabot.yml");
-      return { drift: [...new Set(drift)] };
-    },
-  },
-  {
-    name: "Docs",
-    group: "Docs",
-    rule: "docs/ has design, plan, development and lessons, and usage for a package, in its nav",
-    run: ({ pkg, files }) => {
-      const want = pkg.private ? DOCS : [...DOCS, "usage.md"];
-      const index = files["docs/README.md"];
-      const drift = want.filter((name) => !files[`docs/${name}`]).map((name) => `no docs/${name}`);
-      if (!index) drift.push("no docs/README.md");
-      else {
-        const listed = nav(index);
-        for (const name of want.filter((n) => files[`docs/${n}`] && !listed.includes(n))) {
-          drift.push(`${name} isn't in the nav`);
-        }
-      }
-      if (!/\]\(\.?\/?docs\//.test(files["README.md"] ?? ""))
-        drift.push("README.md doesn't link to docs/");
-      return { drift };
-    },
-  },
-  {
-    name: "AGENTS.md",
-    group: "Agents",
-    rule: "opens with the shared Standard and Prose sections, and CLAUDE.md reads it",
-    run: ({ files }) => {
-      const text = files["AGENTS.md"];
-      if (!text) return { drift: ["no AGENTS.md"] };
-      const drift = SECTIONS.flatMap((heading) => {
-        const have = section(text, heading);
-        if (!have) return [`no ${heading} section`];
-        return have === section(agents, heading) ? [] : [`${heading} section differs from ship's`];
-      });
-      if (files["CLAUDE.md"]?.trim() !== "@AGENTS.md") drift.push("CLAUDE.md isn't @AGENTS.md");
-      return { drift };
-    },
-  },
+  ...ruled("agents."),
+  ...ruled("docs."),
   {
     name: "Release workflow",
     group: "Releases",

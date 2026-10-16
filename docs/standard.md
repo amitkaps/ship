@@ -182,20 +182,24 @@ The config is where the repository says it's internal, with a `@prose` comment s
 Every `main` takes changes the same way. Work happens on a branch, in a pull request, and `ci` has to pass on a branch that's up to date with `main`. The pull request is squash-merged, so `main` reads as one commit per change, and nobody pushes to it, admins included.
 
 - `github.rules`: `main` has one ruleset, named `main`, from [.github/ruleset.json](../.github/ruleset.json). It requires a pull request with no approvals, since there's one maintainer, and the `ci` check. It keeps history linear, and blocks force pushes and deleting the branch. Nobody bypasses it.
-- **Actions:** every workflow uses the actions at the versions this repository's do. A repository can add steps of its own, but the versions move here first, like every other version, so there's no Dependabot.
+- `github.actions`: every workflow uses the actions at the versions this repository's do, and there's no Dependabot. A repository can add steps of its own, but the versions move here first, like every other version.
 - **Merge settings:** from [.github/settings.json](../.github/settings.json). Squash is the only merge, a branch is deleted once it's merged, and auto-merge is on.
 
 `pnpm align` writes both, to every repository or to the ones named, and removes any classic branch protection. The dashboard checks the rules, which GitHub shows to anyone. Without a login, GitHub answers 60 requests an hour, so `pnpm drift` uses `gh`'s login when there is one, and a check the limit stopped shows as not checked, not as drift. With that login, it checks the merge settings too, which only the owner can read.
 
 ## Agents
 
-Every `AGENTS.md` opens with the same two sections as [this repository's](../AGENTS.md), word for word. "Standard" points at this page, and says how changes reach `main`. "Prose" points at the rules in [prose's usage](https://prose.amitkaps.com/docs/usage.md#for-agents). The rules live there, once, and aren't copied into each repository, since the copies had already started to differ. The rest of an `AGENTS.md` is the repository's own. A `CLAUDE.md` holds only `@AGENTS.md`, so Claude Code reads the same file.
+- `agents.sections`: every `AGENTS.md` opens with the same two sections as [this repository's](../AGENTS.md), word for word, and `CLAUDE.md` holds only `@AGENTS.md`, so Claude Code reads the same file.
+
+"Standard" points at this page, and says how changes reach `main`. "Prose" points at the rules in [prose's usage](https://prose.amitkaps.com/docs/usage.md#for-agents). The rules live there, once, and aren't copied into each repository, since the copies had already started to differ. The rest of an `AGENTS.md` is the repository's own.
 
 ## Docs
 
 Explanations live in `@prose` comments, beside the code or setting they explain, and docs that span files live in `docs/`. Both are written in [markz](https://markz.amitkaps.com)'s Markdown, and `pnpm prose` reads them as one document. `package.json` has no comments, so its scripts are explained here. A hand-written `.html` page ships its comments, so it has no prose.
 
 Every repository has the same docs, so anyone, or any agent, finds the same things in the same places.
+
+- `docs.files`: `docs/` has `design.md`, `plan.md`, `development.md` and `lessons.md`, and a package's has `usage.md`. Each is in the `nav` of `docs/README.md`, and `README.md` links to `docs/`.
 
 | File                  | Holds                                                                        |
 | --------------------- | ---------------------------------------------------------------------------- |
