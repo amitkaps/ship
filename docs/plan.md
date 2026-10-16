@@ -30,8 +30,13 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
    - [ ] Cloudflare: the config, a prose site, wrangler, internal sites
    - [ ] GitHub, Agents and Docs: Actions, `AGENTS.md`, the docs
    - [ ] Releases: the release workflow, the package, the labels
-2. Build `pnpm new` from the fixes, so a new repository is an empty one with every fix applied, and the generator can't follow the standard any less than `pnpm align` does.
-3. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
+2. Add `pnpm pr` and `pnpm gone` to every repository, as shared scripts with a rule each.
+   - `pnpm pr "<title>" [--label <label>]` branches from `main` when it's on it, commits, runs `verify`, pushes, opens the pull request and turns on auto-merge. A package's pull request without a label stops before the push, as CI would. `--wait` waits for the merge, then switches to `main` and pulls.
+   - `pnpm gone` fetches, prunes, and deletes each local branch whose remote is gone, which is each one that merged. It works where a global git alias isn't set, like an agent's machine.
+   - AGENTS.md then says to run `pnpm pr`, rather than listing the steps.
+3. Build `pnpm new` from the fixes, so a new repository is an empty one with every fix applied, and the generator can't follow the standard any less than `pnpm align` does.
+4. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
+5. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
 
 ## Later
 
