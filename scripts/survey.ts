@@ -14,7 +14,7 @@
  * folder instead ([A folder](#a-folder)).
  */
 import { basename, join } from "node:path";
-import { type Rule, RULES, parts, stated, unread } from "./rules.ts";
+import { type Rule, RULES, parts, stated } from "./rules.ts";
 import { OWNER, type Pkg, here, read } from "./ship.ts";
 
 export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
@@ -188,29 +188,10 @@ async function visibility(repo: string): Promise<Visibility> {
 }
 
 /** @prose
- * # Packages
+ * # Labels
  *
- * A repository whose `package.json` isn't private is a package, published to npm. Every package
- * releases the same way, with the files in [package/](../package/README.md) copied in unchanged,
- * and labels its pull requests with the labels in [.github/labels.json](../.github/labels.json),
- * which its release notes are grouped by. GitHub shows a public repository's labels to anyone.
- * Its CI has this repository's `Label` step, word for word, and runs again when a label changes,
- * so a pull request without one label can't merge.
- *
- * A package bundles our other packages rather than depending on them, so each releases on its
- * own and a user never installs two versions that disagree.
+ * A package's labels, for `releases.labels`. GitHub shows a public repository's labels to anyone.
  */
-const RELEASE_FILES = [".github/workflows/release.yml", ".github/release.yml"];
-const released = Object.fromEntries(
-  RELEASE_FILES.map((file) => [file, read(join(here, "package", file))]),
-);
-const ciFile = read(join(here, ".github", "workflows", "ci.yml"));
-const LABEL_STEP = /^ {6}- name: Label\n[\s\S]*?\n {10}'\n/m.exec(ciFile)?.[0] ?? "";
-const LABEL_TRIGGER = /^ {4}types: \[.*labeled.*\]$/m.exec(ciFile)?.[0] ?? "";
-const labelNames = (
-  JSON.parse(read(join(here, ".github", "labels.json"))) as { name: string }[]
-).map((label) => label.name);
-
 async function repoLabels(repo: string): Promise<string[] | Error> {
   const found = (await github(`${repo}/labels?per_page=100`)) as { name: string }[] | Error;
   return found instanceof Error ? found : found.map((label) => label.name);
@@ -323,68 +304,7 @@ const listed: Check[] = [
   ...ruled("github."),
   ...ruled("agents."),
   ...ruled("docs."),
-  {
-    name: "Release workflow",
-    group: "Releases",
-    rule: "a package's release.yml and notes config are ship's, word for word, and CI wants a label",
-    run: ({ pkg, files }) => {
-      if (pkg.private) return undefined;
-      const drift = RELEASE_FILES.flatMap((file) => {
-        if (!files[file]) return [`no ${file}`];
-        return files[file] === released[file] ? [] : [`${file} differs from ship's`];
-      });
-      const ci = files[".github/workflows/ci.yml"] ?? "";
-      if (!ci.includes(LABEL_STEP)) drift.push("ci.yml doesn't have ship's Label step");
-      if (!ci.includes(LABEL_TRIGGER)) drift.push("ci.yml doesn't run again when a label changes");
-      return { drift };
-    },
-  },
-  {
-    name: "Package",
-    group: "Releases",
-    rule: "packs dist with publint and Oxc's types, publishes publicly, and bundles our packages",
-    run: ({ pkg, files, deps }) => {
-      if (pkg.private) return undefined;
-      const drift: string[] = [];
-      if (pkg.scripts?.prepack !== "pnpm run build")
-        drift.push(`prepack is ${pkg.scripts?.prepack}, not pnpm run build`);
-      if (JSON.stringify(pkg.files) !== '["dist"]')
-        drift.push(`files is ${JSON.stringify(pkg.files)}, not ["dist"]`);
-      if (pkg.publishConfig?.access !== "public") drift.push("publishConfig.access isn't public");
-      if (!deps.publint) drift.push("no publint dev dependency");
-      if (!/publint:\s*\{[^}]*strict:\s*true/.test(files["vite.config.ts"] ?? "")) {
-        drift.push("pack doesn't run publint with strict: true");
-      }
-      // Oxc writes the types, set in pack rather than tsconfig.json, so the editor doesn't hold
-      // tests and config to what only the published code needs.
-      if (!/dts:\s*\{[^}]*generator:\s*"oxc"/.test(files["vite.config.ts"] ?? "")) {
-        drift.push('pack doesn\'t write types with generator: "oxc"');
-      }
-      if (/"isolatedDeclarations"\s*:\s*true/.test(files["tsconfig.json"] ?? "")) {
-        drift.push("tsconfig.json sets isolatedDeclarations, which pack sets");
-      }
-      if (deps.typescript) drift.push("has typescript, which Oxc's types don't need");
-      for (const name of Object.keys(pkg.dependencies ?? {})) {
-        if (name.startsWith("@amitkaps/"))
-          drift.push(`depends on ${name}, rather than bundling it`);
-      }
-      return { drift };
-    },
-  },
-  {
-    name: "Labels",
-    group: "Releases",
-    rule: "a package has the labels its release notes are grouped by",
-    run: ({ pkg, labels }) => {
-      if (pkg.private || !labels) return undefined;
-      if (labels instanceof Error) return unread(labels);
-      return {
-        drift: labelNames
-          .filter((name) => !labels.includes(name))
-          .map((name) => `no ${name} label`),
-      };
-    },
-  },
+  ...ruled("releases."),
 ];
 
 const order = parts();

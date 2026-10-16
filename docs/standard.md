@@ -225,10 +225,10 @@ The docs are published at `/docs/<file>.md`, so a link to one works on GitHub an
 
 markz, prose, pagez and sitez are packages, published to npm. A package is any repository whose `package.json` isn't private, and every one releases the same way.
 
-- **The release files** are [package/](../package/README.md)'s, copied into the package unchanged: the release workflow and `.github/release.yml`, which groups the notes. They name no package, so the copies stay identical and the survey checks them word for word.
-- **Packing:** `files` is `["dist"]`, `prepack` is `pnpm run build`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
-- **Types come from Oxc.** The pack block sets `dts: { generator: "oxc" }`, so `vp pack` writes the `.d.ts` files without the TypeScript compiler, and fails on an export whose type isn't written out. It's set there, not as `isolatedDeclarations` in `tsconfig.json`, which the editor would apply to tests and config too. A package has no `typescript` dependency, like a site: `vp check` type-checks with tsgolint, which Vite+ installs.
-- **Our own packages are bundled, not depended on.** prose and sitez have markz as a dev dependency, and `vp pack` puts it inside `dist/`. So a package's users never install a second markz, and each package releases on its own, in any order. Picking up a new markz takes a release of the package that bundles it.
+- `releases.files`: The release files are [package/](../package/README.md)'s, copied into the package unchanged: the release workflow and `.github/release.yml`, which groups the notes. They name no package, so the copies stay identical and the survey checks them word for word. CI has this repository's `Label` step, word for word, and runs again when a label is added or taken off.
+- `releases.packing`: A package packs `dist` with publint. `files` is `["dist"]`, `prepack` is `pnpm run build`, and `publishConfig.access` is `public`. publint runs inside `vp pack`, with `pack: { publint: { strict: true } }` and `publint` as a dev dependency, so `build` fails on a package npm would serve badly, and there's no separate publint step.
+- `releases.types`: Types come from Oxc. The pack block sets `dts: { generator: "oxc" }`, so `vp pack` writes the `.d.ts` files without the TypeScript compiler, and fails on an export whose type isn't written out. It's set there, not as `isolatedDeclarations` in `tsconfig.json`, which the editor would apply to tests and config too. A package has no `typescript` dependency, like a site: `vp check` type-checks with tsgolint, which Vite+ installs.
+- `releases.bundled`: Our own packages are bundled, not depended on. prose and sitez have markz as a dev dependency, and `vp pack` puts it inside `dist/`. So a package's users never install a second markz, and each package releases on its own, in any order. Picking up a new markz takes a release of the package that bundles it.
 
 To release, run `pnpm release` here, with the package and its new version.
 
@@ -244,7 +244,9 @@ You approve the staged version with 2FA, in the **Staged Packages** tab on npmjs
 
 ### Release notes
 
-There's no changelog file. Each pull request carries one label, which files it under a heading in the notes. `pnpm align` creates the labels, from [.github/labels.json](../.github/labels.json).
+There's no changelog file. Each pull request carries one label, which files it under a heading in the notes.
+
+- `releases.labels`: A package has the labels its release notes are grouped by, from [.github/labels.json](../.github/labels.json). `pnpm align` creates them.
 
 | Label      | Heading            | For                                            |
 | ---------- | ------------------ | ---------------------------------------------- |
