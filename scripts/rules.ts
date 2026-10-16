@@ -419,10 +419,20 @@ const onVitePlus = (pkg: Pkg): boolean =>
 /** @prose
  * # A shared script
  *
- * A script every repository runs the same way, from a file this repository holds: `pnpm pr` runs
- * `scripts/pr.ts`. Each repository has the script as this one writes it, and the file word for
- * word, and the fix copies both.
+ * A script every repository runs the same way, from a file this repository holds, as `pnpm pr`
+ * runs `scripts/pr.ts`. Each repository has the script and the file word for word, and the fix
+ * copies both.
+ *
+ * A `scripts/` folder the fix starts gets a `README.md` too, which prose asks of every folder. The
+ * repository can add its own scripts beside them.
  */
+const SCRIPTS_README = `# Scripts
+
+Scripts this repository runs with Node, which reads TypeScript as it is. [pr.ts](pr.ts) and
+[gone.ts](gone.ts) are the same file in every repository, copied from
+[ship](https://ship.amitkaps.com/docs/standard.md#scripts), so change them there.
+`;
+
 const sharedScript = (id: string, name: string): Rule => ({
   id,
   check: ({ pkg, files }) => {
@@ -444,6 +454,8 @@ const sharedScript = (id: string, name: string): Rule => ({
       const file = join("scripts", `${name}.ts`);
       mkdirSync(join(dir, "scripts"), { recursive: true });
       writeFileSync(join(dir, file), readFileSync(join(std, file)));
+      const readme = join(dir, "scripts", "README.md");
+      if (!existsSync(readme)) writeFileSync(readme, SCRIPTS_README);
       const pkg = readPkg(dir);
       const want = readPkg(std).scripts?.[name];
       if (want) pkg.scripts = { ...pkg.scripts, [name]: want };

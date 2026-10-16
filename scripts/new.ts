@@ -347,7 +347,12 @@ export function hello(who: string): string {
 }
 `;
 
-const test = `import { expect, test } from "vite-plus/test";
+const test = `/** @prose
+ * # The first test
+ *
+ * What the starting function returns, as a test to replace.
+ */
+import { expect, test } from "vite-plus/test";
 import { hello } from "../src/index.ts";
 
 test("says hello", () => {
@@ -382,6 +387,9 @@ export async function write(
   } else {
     files["src/index.ts"] = entry(name, description);
     files["tests/index.test.ts"] = test;
+    files["src/README.md"] = "# Source\n\nThe code, with [index.ts](index.ts) as its entry.\n";
+    files["tests/README.md"] =
+      "# Tests\n\nThe tests, one file for each part of [the source](../src/).\n";
   }
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
