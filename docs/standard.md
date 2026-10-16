@@ -72,13 +72,13 @@ The tools every repository shares are on one version, written the same way, so m
 
 A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 
+`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: pnpm's one-day wait on a new version, with `@amitkaps/*` excluded so our own releases install at once, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
+
 ## Held
 
 When a tool a repository depends on can't support the standard yet, the check is held: it shows amber on the dashboard with its reason, and doesn't fail `pnpm drift`. Each hold says when to look again, like svelte-check accepting TypeScript 7. Holds are listed in [scripts/survey.ts](../scripts/survey.ts).
 
 A hold is for what a tool can't do, never for a preference. The point of one standard is that a choice like Vite+ is made once and paid for once, not argued again in each repository. A hold whose check stops drifting fails `pnpm drift` until it's removed, so none outlives its reason.
-
-`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: pnpm's one-day wait on a new version, with `@amitkaps/*` excluded so our own releases install at once, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
 
 ## Scripts
 

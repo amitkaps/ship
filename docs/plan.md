@@ -41,5 +41,3 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 - **A deploy by hand picks no account.** The login sees two Cloudflare accounts, so `pnpm ship` on a laptop stops and asks for `CLOUDFLARE_ACCOUNT_ID`. Workers Builds isn't affected, and `pnpm align` picks the account by name. The account could go in `cloudflare.config.ts`, or a deploy by hand could stay rare enough to set the variable.
 
 - **The dashboard is only as fresh as ship's last deploy.** It's built when ship deploys, so a change merged in another repository doesn't show until ship merges something. After the AGENTS.md change, it showed four repositories as drifting that had already moved. A daily rebuild, an Actions cron calling a deploy hook, would keep it within a day.
-
-- **A timing test can stop markz's deploy.** markz's first cf build from `main` failed on a linear-time test, 37.1 ms against a 33.4 ms limit, on Cloudflare's build machine, though it passed in CI and locally. `verify` is the build command, so a slow machine blocks a deploy. The timing tests could leave `verify` for CI only, or take more slack.
