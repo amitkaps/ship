@@ -14,7 +14,7 @@
  * folder instead ([A folder](#a-folder)).
  */
 import { basename, join } from "node:path";
-import { type Rule, RULES, parts, stated } from "./rules.ts";
+import { type Rule, RULES, parts, stated, unread } from "./rules.ts";
 import { OWNER, type Pkg, here, read } from "./ship.ts";
 
 export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
@@ -160,11 +160,6 @@ async function github(path: string): Promise<unknown> {
   } catch (error) {
     return error instanceof Error ? error : new Error(String(error));
   }
-}
-
-function unread(error: Error): Finding {
-  if (error instanceof RateLimit) return { drift: [], unchecked: error.message };
-  return { drift: [`GitHub couldn't be read: ${error.message}`] };
 }
 
 const branchRules = (repo: string) =>
@@ -318,7 +313,7 @@ export const HELD: Record<string, Record<string, string>> = {
   base: {
     "versions.typescript":
       "svelte-check accepts TypeScript 5 and 6 only. Move when its peer range takes 7.",
-    Cloudflare:
+    "cloudflare.config":
       "cf can't deploy SvelteKit, since the adapter doesn't write cf's Build Output. Move when it does.",
   },
 };
@@ -374,73 +369,7 @@ const listed: Check[] = [
   ...ruled("versions."),
   ...ruled("toolchain."),
   ...ruled("scripts."),
-  {
-    name: "Cloudflare",
-    group: "Cloudflare",
-    rule: "a site deploys with cloudflare.config.ts",
-    run: ({ worker: site }) => {
-      if (!site) return undefined;
-      const drift =
-        site.file === "cloudflare.config.ts" ? [] : [`still on wrangler (${site.file})`];
-      return { value: site.file, drift };
-    },
-  },
-  /** @prose
-   * # A prose site on cf
-   *
-   * A site that's the folder `prose build` writes reaches cf through Vite: the folder is Vite's
-   * `publicDir`, the Cloudflare plugin writes it out as assets only, and a `vp build` after
-   * `prose build` in `verify` runs the two. In a package, `build` is `vp pack`, so `verify` runs
-   * `vp build` itself. The plugin's output is `.cloudflare/`, which isn't committed.
-   */
-  {
-    name: "prose site",
-    group: "Cloudflare",
-    rule: "a prose site on cf hands .prose to Vite, and verify builds it after prose build",
-    run: ({ files, pkg, worker: site }) => {
-      const verify = pkg.scripts?.verify ?? "";
-      if (site?.file !== "cloudflare.config.ts" || !/pnpm prose build/.test(verify)) {
-        return undefined;
-      }
-      const vite = files["vite.config.ts"] ?? "";
-      const drift: string[] = [];
-      if (!/publicDir:\s*"\.prose"/.test(vite)) drift.push("vite.config.ts doesn't serve .prose");
-      if (!/cloudflare\(\{\s*assetsOnly:\s*true\s*\}\)/.test(vite)) {
-        drift.push("vite.config.ts doesn't use the Cloudflare plugin with assetsOnly");
-      }
-      const after = verify.slice(verify.indexOf("pnpm prose build"));
-      const build = pkg.scripts?.build === "vp build" ? /&& (pnpm build|vp build)/ : /&& vp build/;
-      if (!build.test(after)) drift.push("verify doesn't run vp build after pnpm prose build");
-      if (!/^\/?\.cloudflare\/?$/m.test(files[".gitignore"] ?? "")) {
-        drift.push(".gitignore doesn't ignore .cloudflare");
-      }
-      return { value: "prose", drift };
-    },
-  },
-  {
-    name: "wrangler.toml",
-    group: "Cloudflare",
-    rule: "a site still on wrangler uses wrangler.toml, whose comments prose reads",
-    run: ({ worker: site }) => {
-      if (!site || site.file === "cloudflare.config.ts") return undefined;
-      const drift = site.file === "wrangler.toml" ? [] : [`${site.file}, not wrangler.toml`];
-      return { value: site.file, drift };
-    },
-  },
-  {
-    name: "Internal",
-    group: "Cloudflare",
-    rule: "a private repository's site turns off workers.dev and preview URLs, and sits behind Access",
-    run: ({ worker: site, visibility: seen }) => {
-      if (!site) return undefined;
-      if (seen instanceof Error && site.workersDev) return unread(seen);
-      if (seen !== "private" && site.workersDev) return undefined;
-      const drift: string[] = [];
-      if (site.workersDev) drift.push(`${site.file} doesn't turn off workers.dev`);
-      if (site.previewUrls) drift.push(`${site.file} doesn't turn off preview URLs`);
-      return { value: "internal", drift };
-    },
-  },
+  ...ruled("cloudflare."),
   ...ruled("github."),
   {
     name: "Actions",
