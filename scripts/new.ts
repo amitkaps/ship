@@ -82,7 +82,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         // ship's own verify also builds its prose site, which a new site doesn't have.
         scripts: {
           ...scripts("dev", "build", "preview", "check", "fix"),
-          verify: "pnpm check && pnpm test && pnpm build",
+          verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
           ...scripts("ship", "prose"),
         },
         devDependencies: {
@@ -104,7 +104,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         type: "module",
         scripts: {
           ...scripts("check", "fix", "test"),
-          verify: "pnpm check && pnpm test",
+          verify: "pnpm check && pnpm prose check && pnpm test",
           ...scripts("prose"),
         },
         devDependencies: {
@@ -138,7 +138,7 @@ async function packageJson(name: string, kind: Kind, description: string): Promi
         ...scripts("check", "fix"),
         test: "vp test --run",
         ...scripts("prose"),
-        verify: "pnpm check && pnpm test && pnpm build",
+        verify: "pnpm check && pnpm prose check && pnpm test && pnpm build",
       },
       devDependencies: {
         "@amitkaps/prose": npm("@amitkaps/prose"),

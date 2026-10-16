@@ -10,7 +10,7 @@
     "check": "vp check",
     "fix": "vp check --fix",
     "test": "vp test --run",
-    "verify": "pnpm check && pnpm test && pnpm prose build && pnpm dashboard && pnpm build",
+    "verify": "pnpm check && pnpm prose check && pnpm test && pnpm prose build && pnpm dashboard && pnpm build",
     "ship": "cf deploy --prebuilt",
     "prose": "prose",
     "drift": "node scripts/drift.ts",
