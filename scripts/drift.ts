@@ -59,7 +59,13 @@ let drifted = false;
 for (const folder of folders) {
   const { findings, worker: site } = await checkFolder(resolve(folder));
   const drift = findings.flatMap((f) => (f.held ? [] : lines(f)));
-  drift.push(...settings(basename(resolve(folder)), site));
+  const repo = basename(resolve(folder));
+  // A folder that isn't on GitHub yet has no settings to check.
+  try {
+    drift.push(...settings(repo, site));
+  } catch {
+    findings.push({ drift: [], unchecked: `the settings, since ${repo} isn't on GitHub` });
+  }
   if (site?.internal && !cloudflare) drift.push(...accessDrift(site));
   drifted = print(folder, drift, findings) || drifted;
 }

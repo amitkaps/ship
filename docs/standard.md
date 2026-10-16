@@ -54,23 +54,23 @@ Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a c
 ```
 
 - `versions.pnpm`: pnpm is pinned exactly, with `onFail: download`. Whatever pnpm is installed globally, pnpm fetches and runs the pinned one, so a new pnpm release never breaks a checkout. CI reads `packageManager`, so keep the two equal.
-- **Node fails loudly.** `onFail: error` stops on the wrong Node.
-- **One Node, for building and for using.** `engines` says the same `>=26` as `devEngines`. A package supports the Node it's built and tested on, and nothing older, so CI runs on one Node. Node 26 is the LTS release from October 2026. When the next LTS arrives, every repository moves to it at once, and for a package that's a breaking release.
-- **Bump deliberately, everywhere at once.** Being on the latest pnpm doesn't matter. Being on the same one does.
+- `versions.node`: `devEngines` asks for this repository's Node with `onFail: error`, and `engines` asks for the same. The wrong Node stops loudly. A package supports the Node it's built and tested on, and nothing older, so CI runs on one Node. Node 26 is the LTS release from October 2026. When the next LTS arrives, every repository moves to it at once, and for a package that's a breaking release.
+
+Bump deliberately, everywhere at once. Being on the latest pnpm doesn't matter. Being on the same one does.
 
 ## Other versions
 
 The tools every repository shares are on one version, written the same way, so moving one never leaves two repositories to reconcile. Where this repository uses a tool, its `package.json` has the version. Where it doesn't, the `catalog` in its `pnpm-workspace.yaml` does, which nothing here installs. npm isn't read: a new release is drift only once this repository moves to it, and `pnpm align` moves it, past pnpm's one-day wait.
 
-| Tool                                 | Version                                                                   |
-| ------------------------------------ | ------------------------------------------------------------------------- |
-| `@types/node`                        | the major of the Node that `engines` allows, so code can't use newer APIs |
-| `vite-plus`                          | with the override at the same version and no direct `vite`                |
-| `cf`, `@cloudflare/vite-plugin`      | in any repository that deploys with cf, pinned by hand while they're beta |
-| `@amitkaps/prose`, `@amitkaps/markz` | where a repository uses them                                              |
-| `typescript`                         | from the catalog, where a repository has it                               |
-| `wrangler`                           | from the catalog, while a repository is still on it                       |
-| `publint`                            | from the catalog, in every package                                        |
+- `versions.types-node`: `@types/node` is this repository's, where a repository has it. It's the major of the Node that `engines` allows, so code can't use newer APIs.
+- `versions.vite-plus`: every repository is on this repository's `vite-plus`, with the override at the same version and no direct `vite`. [Toolchain](#toolchain-vite) says why.
+- `versions.typescript`: `typescript` is the catalog's, where a repository has it.
+- `versions.prose`: `@amitkaps/prose` is this repository's, where a repository has it.
+- `versions.markz`: `@amitkaps/markz` is this repository's, where a repository has it.
+- `versions.cf`: `cf` is this repository's, where a repository deploys with it. It's pinned by hand while it's beta.
+- `versions.cf-vite-plugin`: `@cloudflare/vite-plugin` is this repository's, where a repository deploys with cf. It's pinned by hand while it's beta, at the build that goes with `cf`.
+- `versions.wrangler`: `wrangler` is the catalog's, while a repository is still on it.
+- `versions.publint`: `publint` is the catalog's, where a package has it.
 
 A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 

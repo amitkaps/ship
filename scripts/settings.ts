@@ -38,7 +38,9 @@ export function githubLogin(): string | undefined {
   }
 }
 
-const gh = (...args: string[]): string => execFileSync("gh", args, { encoding: "utf8" });
+// gh's own error goes in the thrown one, not on the terminal.
+const gh = (...args: string[]): string =>
+  execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 
 const merging = json(".github/settings.json") as Record<string, unknown>;
 const labels = json(".github/labels.json") as {

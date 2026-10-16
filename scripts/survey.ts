@@ -14,8 +14,8 @@
  * folder instead ([A folder](#a-folder)).
  */
 import { basename, join } from "node:path";
-import { type Rule, RULES, stated } from "./rules.ts";
-import { OWNER, type Pkg, here, read, standard } from "./ship.ts";
+import { type Rule, RULES, parts, stated } from "./rules.ts";
+import { OWNER, type Pkg, here, read } from "./ship.ts";
 
 export const REPOS = ["base", "markz", "prose", "pagez", "sitez", "ship"];
 
@@ -66,44 +66,6 @@ async function fromGitHub(repo: string): Promise<Files> {
   );
   return Object.fromEntries(entries);
 }
-
-const standardDeps = standard.devDependencies ?? {};
-const vitePlus = standardDeps["vite-plus"];
-const node = standard.devEngines?.runtime;
-
-/** @prose
- * # The shared versions
- *
- * Every repository that uses one of these tools is on the version this repository names, written
- * the same way, so moving one never leaves two repositories to reconcile. Most come from this
- * repository's own `package.json`. The ones it doesn't use, like wrangler, are named in the
- * `catalog` of its `pnpm-workspace.yaml`, which nothing here installs. npm isn't read: a new
- * release is drift only once this repository moves to it, which `pnpm align` does.
- */
-export const TOOLS = [
-  "@types/node",
-  "typescript",
-  "@amitkaps/prose",
-  "@amitkaps/markz",
-  "cf",
-  "@cloudflare/vite-plugin",
-  "wrangler",
-  "publint",
-];
-
-// `name: version` lines under `catalog:`, quoted or not. A regular expression is enough, since
-// the block is flat.
-export function catalog(workspace: string): Record<string, string> {
-  const block = /^catalog:\n((?:[ \t]+.*\n?)*)/m.exec(workspace)?.[1] ?? "";
-  return Object.fromEntries(
-    [...block.matchAll(/^\s+"?([^":\s]+)"?:\s*"?([^"\s]+)"?/gm)].map((m) => [m[1], m[2]]),
-  );
-}
-
-export const VERSIONS: Record<string, string | undefined> = {
-  ...catalog(read(join(here, "pnpm-workspace.yaml"))),
-  ...standardDeps,
-};
 
 /** @prose
  * # The type checks
@@ -358,7 +320,8 @@ export type Repo = {
  * # The checks
  *
  * Each check covers one part of the standard, and says what it expects in a line the page shows
- * beside it. The versions come first, then how the repository is set up. A check returns what
+ * beside it. The checks run, and the page lists them, in the order of the standard's parts, so
+ * the page reads like the standard. A check returns what
  * the repository has, like the version it pins, and what has drifted, which is empty when
  * nothing has. It returns `undefined` when it doesn't apply, like the Cloudflare check for a
  * package with no site, or the typescript check for a repository without typescript. A check
@@ -386,7 +349,8 @@ export type Finding = {
  */
 export const HELD: Record<string, Record<string, string>> = {
   base: {
-    typescript: "svelte-check accepts TypeScript 5 and 6 only. Move when its peer range takes 7.",
+    "versions.typescript":
+      "svelte-check accepts TypeScript 5 and 6 only. Move when its peer range takes 7.",
     Cloudflare:
       "cf can't deploy SvelteKit, since the adapter doesn't write cf's Build Output. Move when it does.",
   },
@@ -403,7 +367,8 @@ function hold(repo: string, check: Check, finding: Finding | undefined): Finding
 
 export type Check = {
   name: string;
-  group: "Versions" | "Setup" | "Release";
+  // The part of the standard it's in, which the dashboard groups it under.
+  group: string;
   rule: string;
   // Where the standard states it, for a rule with an id.
   link?: string;
@@ -423,8 +388,10 @@ function fromRule(rule: Rule): Check {
   const statement = statements.get(rule.id);
   return {
     name: rule.id,
-    group: rule.group,
-    rule: /^(.+?\.)(\s|$)/.exec(statement?.text ?? "")?.[1] ?? "",
+    group: statement?.part ?? "",
+    rule: [rule.wants, /^(.+?\.)(\s|$)/.exec(statement?.text ?? "")?.[1]]
+      .filter(Boolean)
+      .join(": "),
     link: statement?.link,
     run: (repo) => {
       const finding = rule.check(repo);
@@ -436,69 +403,11 @@ function fromRule(rule: Rule): Check {
 const ruled = (prefix: string): Check[] =>
   RULES.filter((rule) => rule.id.startsWith(prefix)).map(fromRule);
 
-// A shared tool, where a repository uses it, written as this repository writes it.
-const toOurs = (name: string, rule = "ship's, where a repository has it"): Check => ({
-  name,
-  group: "Versions",
-  rule: `${VERSIONS[name]}: ${rule}`,
-  run: ({ deps }) => {
-    const value = deps[name];
-    if (!value) return undefined;
-    const want = VERSIONS[name];
-    return { value, drift: value === want ? [] : [`${name} is ${value}, not ${want}`] };
-  },
-});
-
-export const CHECKS: Check[] = [
-  {
-    name: "Node",
-    group: "Versions",
-    rule: `${node?.version} in devEngines, with onFail: ${node?.onFail}, and the same in engines`,
-    run: ({ pkg }) => {
-      const runtime = pkg.devEngines?.runtime;
-      const drift: string[] = [];
-      if (runtime?.version !== node?.version) {
-        drift.push(`devEngines asks for Node ${runtime?.version}, not ${node?.version}`);
-      }
-      if (runtime?.onFail !== node?.onFail) {
-        drift.push(`devEngines Node onFail is ${runtime?.onFail}, not ${node?.onFail}`);
-      }
-      // A repository supports the Node it's built on, and nothing older.
-      if (pkg.engines?.node !== standard.engines?.node) {
-        drift.push(`engines asks for Node ${pkg.engines?.node}, not ${standard.engines?.node}`);
-      }
-      return { value: runtime?.version, drift };
-    },
-  },
-  toOurs("@types/node", "the major of the Node that engines allows, as ship has it"),
-  ...ruled("versions.pnpm"),
-  {
-    name: "vite-plus",
-    group: "Versions",
-    rule: `${vitePlus}, with every vite pointed at the same version, and no vite of its own`,
-    run: ({ files, deps, vitePlus: own }) => {
-      if (!own) return { drift: ["not on Vite+"] };
-      const drift: string[] = [];
-      if (own !== vitePlus) drift.push(`vite-plus is ${own}, not ${vitePlus}`);
-      const override = /vite-plus-core@([\w.-]+)/.exec(files["pnpm-workspace.yaml"] ?? "")?.[1];
-      if (!override) drift.push("pnpm-workspace.yaml has no vite override");
-      else if (override !== vitePlus) {
-        drift.push(`pnpm-workspace.yaml points vite at ${override}, not ${vitePlus}`);
-      }
-      if (deps.vite) drift.push(`depends on vite ${deps.vite} directly`);
-      return { value: own, drift };
-    },
-  },
-  toOurs("typescript"),
-  toOurs("@amitkaps/prose"),
-  toOurs("@amitkaps/markz"),
-  toOurs("cf", "ship's, where a repository deploys with cf"),
-  toOurs("@cloudflare/vite-plugin", "ship's, where a repository deploys with cf"),
-  toOurs("wrangler", "ship's, while a repository is still on it"),
-  toOurs("publint", "ship's, in every package"),
+const listed: Check[] = [
+  ...ruled("versions."),
   {
     name: "Types",
-    group: "Setup",
+    group: "Toolchain: Vite+",
     rule: "tsconfig.json turns on the strict options",
     run: ({ files }) => {
       const tsconfig = files["tsconfig.json"];
@@ -511,7 +420,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Lint",
-    group: "Setup",
+    group: "Toolchain: Vite+",
     rule: "type-aware lint that also type-checks",
     run: ({ files, vitePlus: own }) => {
       // Without Vite+ there's no lint block to read, and the vite-plus check already says so.
@@ -525,7 +434,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Editor",
-    group: "Setup",
+    group: "Toolchain: Vite+",
     rule: "the .vscode settings Vite+ writes, and the oxc and Vitest extensions, as ship has them",
     run: ({ files }) => {
       const drift = EDITOR.flatMap((file) => {
@@ -554,7 +463,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Cooldown",
-    group: "Setup",
+    group: "Other versions",
     rule: "pnpm's wait on a new version, with only our own scope excluded",
     run: ({ files }) => {
       const workspace = files["pnpm-workspace.yaml"] ?? "";
@@ -573,7 +482,7 @@ export const CHECKS: Check[] = [
   ...ruled("scripts."),
   {
     name: "Cloudflare",
-    group: "Setup",
+    group: "Cloudflare",
     rule: "a site deploys with cloudflare.config.ts",
     run: ({ worker: site }) => {
       if (!site) return undefined;
@@ -592,7 +501,7 @@ export const CHECKS: Check[] = [
    */
   {
     name: "prose site",
-    group: "Setup",
+    group: "Cloudflare",
     rule: "a prose site on cf hands .prose to Vite, and verify builds it after prose build",
     run: ({ files, pkg, worker: site }) => {
       const verify = pkg.scripts?.verify ?? "";
@@ -616,7 +525,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "wrangler.toml",
-    group: "Setup",
+    group: "Cloudflare",
     rule: "a site still on wrangler uses wrangler.toml, whose comments prose reads",
     run: ({ worker: site }) => {
       if (!site || site.file === "cloudflare.config.ts") return undefined;
@@ -626,7 +535,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Internal",
-    group: "Setup",
+    group: "Cloudflare",
     rule: "a private repository's site turns off workers.dev and preview URLs, and sits behind Access",
     run: ({ worker: site, visibility: seen }) => {
       if (!site) return undefined;
@@ -641,7 +550,7 @@ export const CHECKS: Check[] = [
   ...ruled("github."),
   {
     name: "Actions",
-    group: "Setup",
+    group: "GitHub",
     rule: "workflows use ship's action versions, and nothing else bumps them",
     run: ({ files }) => {
       const drift: string[] = [];
@@ -657,7 +566,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Docs",
-    group: "Setup",
+    group: "Docs",
     rule: "docs/ has design, plan, development and lessons, and usage for a package, in its nav",
     run: ({ pkg, files }) => {
       const want = pkg.private ? DOCS : [...DOCS, "usage.md"];
@@ -677,7 +586,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "AGENTS.md",
-    group: "Setup",
+    group: "Agents",
     rule: "opens with the shared Standard and Prose sections, and CLAUDE.md reads it",
     run: ({ files }) => {
       const text = files["AGENTS.md"];
@@ -693,7 +602,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Release workflow",
-    group: "Release",
+    group: "Releases",
     rule: "a package's release.yml and notes config are ship's, word for word, and CI wants a label",
     run: ({ pkg, files }) => {
       if (pkg.private) return undefined;
@@ -709,7 +618,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Package",
-    group: "Release",
+    group: "Releases",
     rule: "packs dist with publint and Oxc's types, publishes publicly, and bundles our packages",
     run: ({ pkg, files, deps }) => {
       if (pkg.private) return undefined;
@@ -741,7 +650,7 @@ export const CHECKS: Check[] = [
   },
   {
     name: "Labels",
-    group: "Release",
+    group: "Releases",
     rule: "a package has the labels its release notes are grouped by",
     run: ({ pkg, labels }) => {
       if (pkg.private || !labels) return undefined;
@@ -754,6 +663,9 @@ export const CHECKS: Check[] = [
     },
   },
 ];
+
+const order = parts();
+export const CHECKS = listed.toSorted((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
 
 export type Result = {
   repo: string;
@@ -810,7 +722,6 @@ export async function survey(): Promise<Result[]> {
  * is, so `pnpm drift <folder>` can check its settings.
  */
 /** A folder's files, read as the checks read a repository, for `pnpm align`'s fixes. */
-export const readFolder = (dir: string): Repo => repoOf(fromDisk(dir));
 
 export async function checkFolder(dir: string): Promise<{ findings: Finding[]; worker?: Worker }> {
   const repo = basename(dir);

@@ -21,8 +21,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { RULES, fixGitHub } from "./rules.ts";
-import { OWNER } from "./ship.ts";
-import { HELD, REPOS, TOOLS, catalog, readFolder, worker } from "./survey.ts";
+import { OWNER, TOOLS, catalog } from "./ship.ts";
+import { HELD, REPOS, worker } from "./survey.ts";
 import { cloudflareLogin, githubLogin, writeGitHub, writeWorker } from "./settings.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -151,36 +151,16 @@ async function updateSelf(dir: string, log: string[]): Promise<string[]> {
 /** @prose
  * # Another repository
  *
- * Every shared tool it uses is set to the version the standard names, written the same way,
- * except where a hold says a tool can't move yet, like base's TypeScript. The Vite+ override
- * follows `vite-plus`. The editor settings are this repository's, merged over the repository's
- * own, so a setting it adds, like base's for Svelte, stays.
- *
- * Then every rule with a fix in the files, from [rules.ts](rules.ts), fixes what the clone has
- * drifted on, like `versions.pnpm`. A fix reads the standard from this checkout, not from the
- * clone `pnpm align` just moved, which is the same for every rule with a fix so far.
+ * Every rule with a fix in the files, from [rules.ts](rules.ts), fixes the clone, like
+ * `versions.typescript`, except where a hold says it can't move yet, like base's TypeScript. A
+ * fix reads the standard from `std`, the clone of this repository when `pnpm align` just moved
+ * it, so the others take its new versions. A fix changes nothing that's in line already. The
+ * editor settings are this repository's, merged over the repository's own, so a setting it adds,
+ * like base's for Svelte, stays.
  */
 async function alignTo(dir: string, std: string, repo: string, log: string[]): Promise<string[]> {
-  const stdPkg = readJson<Pkg>(join(std, "package.json"));
-  const stdWorkspace = readFileSync(join(std, "pnpm-workspace.yaml"), "utf8");
-  const versions: Deps = { ...catalog(stdWorkspace), ...depsOf(stdPkg) };
-  const shared = [...TOOLS, "vite-plus"];
-
-  const file = join(dir, "package.json");
-  const pkg = readJson<Pkg>(file);
-  for (const field of ["dependencies", "devDependencies"] as const) {
-    for (const name of Object.keys(pkg[field] ?? {})) {
-      const want = versions[name];
-      if (shared.includes(name) && want && !HELD[repo]?.[name]) pkg[field]![name] = want;
-    }
-  }
-  writeJson(file, pkg);
-
-  const vitePlus = versions["vite-plus"];
-  const workspace = join(dir, "pnpm-workspace.yaml");
-  if (vitePlus && existsSync(workspace)) {
-    const text = readFileSync(workspace, "utf8");
-    writeFileSync(workspace, text.replace(/vite-plus-core@[\w.-]+/, `vite-plus-core@${vitePlus}`));
+  for (const rule of RULES) {
+    if (rule.fix?.in === "files" && !HELD[repo]?.[rule.id]) rule.fix.apply(dir, std);
   }
 
   for (const name of ["settings.json", "extensions.json"]) {
@@ -202,15 +182,8 @@ async function alignTo(dir: string, std: string, repo: string, log: string[]): P
     writeJson(path, merged);
   }
 
-  // Then each rule with a fix in the files, where the clone has drifted from it and no hold
-  // says it can't move yet.
-  for (const rule of RULES) {
-    if (rule.fix?.in !== "files" || HELD[repo]?.[rule.id]) continue;
-    if (rule.check(readFolder(dir))?.drift.length) rule.fix.apply(dir);
-  }
-
   await sh(dir, log, "pnpm", "install");
-  return update(dir, log, shared);
+  return update(dir, log, [...TOOLS, "vite-plus"]);
 }
 
 /** @prose

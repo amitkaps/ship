@@ -9,23 +9,25 @@
  * a check, or checked without being stated.
  *
  * A check returns `undefined` when its rule doesn't apply, like `scripts.preview` for a package.
- * A fix in `files` edits a clone, and `pnpm align` puts it in the repository's pull request. A
- * fix in `github` is written directly, since there's no file to review. A rule with no fix is
- * fixed by hand, as the standard says.
+ * What it `wants`, like a version, goes before the rule on the dashboard. A fix in `files` edits
+ * a clone to match the folder that holds the standard, and `pnpm align` puts it in the
+ * repository's pull request. It changes nothing in a clone already in line, so it's safe to run
+ * on every one. A fix in `github` is written directly, since there's no file to review. A rule
+ * with no fix is fixed by hand, as the standard says.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type Pkg, here, read, standard } from "./ship.ts";
+import { type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
 import { writeRuleset } from "./settings.ts";
 import type { BranchRule, Finding, Repo } from "./survey.ts";
 
 export type Fix =
-  | { in: "files"; apply: (dir: string) => void }
+  | { in: "files"; apply: (dir: string, std: string) => void }
   | { in: "github"; apply: (repo: string) => void };
 
 export type Rule = {
   id: string;
-  group: "Versions" | "Setup" | "Release";
+  wants?: string;
   check: (repo: Repo) => Finding | undefined;
   fix?: Fix;
 };
@@ -33,26 +35,43 @@ export type Rule = {
 /** @prose
  * # Where each rule is stated
  *
- * A rule in the standard is a list item on one line, `` - `id`: text ``, under the heading of
- * its part. The link `pnpm drift` prints goes to that heading, by the slug GitHub and markz both
- * give it. Code blocks are skipped, so an example can't state a rule.
+ * A rule in the standard is a list item on one line, `` - `id`: text ``, under a heading. Its
+ * part is the second-level heading it's under, like Scripts, which the dashboard groups it by.
+ * The link `pnpm drift` prints goes to the nearest heading, by the slug GitHub and markz both give
+ * it. Code blocks are skipped, so an example can't state a rule.
  */
-export type Stated = { id: string; text: string; link: string };
+export type Stated = { id: string; text: string; part: string; link: string };
 
-export function stated(markdown = read(join(here, "docs", "standard.md"))): Stated[] {
-  const found: Stated[] = [];
+const STANDARD = join(here, "docs", "standard.md");
+
+// Each line outside a code block, with the headings it's under.
+function* lines(markdown: string): Generator<{ line: string; part: string; heading: string }> {
+  let part = "";
   let heading = "";
   let fenced = false;
   for (const line of markdown.split("\n")) {
     if (/^(```|~~~)/.test(line)) fenced = !fenced;
     if (fenced) continue;
+    part = /^## (.+)$/.exec(line)?.[1] ?? part;
     heading = /^#{2,6} (.+)$/.exec(line)?.[1] ?? heading;
+    yield { line, part, heading };
+  }
+}
+
+export function stated(markdown = read(STANDARD)): Stated[] {
+  const found: Stated[] = [];
+  for (const { line, part, heading } of lines(markdown)) {
     const rule = /^- `([a-z]+\.[a-z-]+)`: (.+)$/.exec(line);
     if (rule?.[1] && rule[2]) {
-      found.push({ id: rule[1], text: rule[2], link: `${STANDARD_URL}#${slug(heading)}` });
+      found.push({ id: rule[1], text: rule[2], part, link: `${STANDARD_URL}#${slug(heading)}` });
     }
   }
   return found;
+}
+
+/** The standard's parts, its second-level headings, in order. */
+export function parts(markdown = read(STANDARD)): string[] {
+  return [...lines(markdown)].flatMap(({ line }) => /^## (.+)$/.exec(line)?.[1] ?? []);
 }
 
 const STANDARD_URL = "https://ship.amitkaps.com/docs/standard.md";
@@ -108,10 +127,76 @@ function rulesDrift(found: BranchRule[]): string[] {
 
 const drifted = (drift: string[]): Finding => ({ drift });
 
+const readPkg = (dir: string): Pkg =>
+  JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as Pkg;
+const writePkg = (dir: string, pkg: Pkg): void =>
+  writeFileSync(join(dir, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
+
+// Sets a dependency to the standard's version, in whichever list the repository has it.
+function pin(dir: string, std: string, name: string): void {
+  const want = versionsIn(std)[name];
+  const pkg = readPkg(dir);
+  if (!want) return;
+  for (const field of ["dependencies", "devDependencies"] as const) {
+    const deps = pkg[field];
+    if (deps?.[name]) deps[name] = want;
+  }
+  writePkg(dir, pkg);
+}
+
+/** @prose
+ * # A shared version
+ *
+ * A tool every repository writes as this one does, checked where a repository has it.
+ */
+const version = (id: string, name: string): Rule => ({
+  id,
+  wants: VERSIONS[name],
+  check: ({ deps }) => {
+    const value = deps[name];
+    if (!value) return undefined;
+    const want = VERSIONS[name];
+    return { value, drift: value === want ? [] : [`${name} is ${value}, not ${want}`] };
+  },
+  fix: { in: "files", apply: (dir, std) => pin(dir, std, name) },
+});
+
+const node = standard.devEngines?.runtime;
+const vitePlus = VERSIONS["vite-plus"];
+const OVERRIDE = /vite-plus-core@[\w.-]+/;
+
 export const RULES: Rule[] = [
   {
+    id: "versions.node",
+    wants: node?.version,
+    check: ({ pkg }) => {
+      const runtime = pkg.devEngines?.runtime;
+      const drift: string[] = [];
+      if (runtime?.version !== node?.version) {
+        drift.push(`devEngines asks for Node ${runtime?.version}, not ${node?.version}`);
+      }
+      if (runtime?.onFail !== node?.onFail) {
+        drift.push(`devEngines Node onFail is ${runtime?.onFail}, not ${node?.onFail}`);
+      }
+      if (pkg.engines?.node !== standard.engines?.node) {
+        drift.push(`engines asks for Node ${pkg.engines?.node}, not ${standard.engines?.node}`);
+      }
+      return { value: runtime?.version, drift };
+    },
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        const want = readPkg(std);
+        const pkg = readPkg(dir);
+        pkg.devEngines = { ...pkg.devEngines, runtime: want.devEngines?.runtime };
+        pkg.engines = { ...pkg.engines, node: want.engines?.node };
+        writePkg(dir, pkg);
+      },
+    },
+  },
+  {
     id: "versions.pnpm",
-    group: "Versions",
+    wants: pnpm,
     check: ({ pkg }) => {
       const drift: string[] = [];
       if (pkg.packageManager !== `pnpm@${pnpm}`) {
@@ -128,18 +213,54 @@ export const RULES: Rule[] = [
     },
     fix: {
       in: "files",
-      apply: (dir) => {
-        const file = join(dir, "package.json");
-        const pkg = JSON.parse(readFileSync(file, "utf8")) as Pkg;
-        pkg.packageManager = standard.packageManager;
-        pkg.devEngines = { ...pkg.devEngines, packageManager: standard.devEngines?.packageManager };
-        writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
+      apply: (dir, std) => {
+        const want = readPkg(std);
+        const pkg = readPkg(dir);
+        pkg.packageManager = want.packageManager;
+        pkg.devEngines = { ...pkg.devEngines, packageManager: want.devEngines?.packageManager };
+        writePkg(dir, pkg);
       },
     },
   },
+  version("versions.types-node", "@types/node"),
+  {
+    id: "versions.vite-plus",
+    wants: vitePlus,
+    check: ({ files, deps, vitePlus: own }) => {
+      if (!own) return { drift: ["not on Vite+"] };
+      const drift: string[] = [];
+      if (own !== vitePlus) drift.push(`vite-plus is ${own}, not ${vitePlus}`);
+      const override = /vite-plus-core@([\w.-]+)/.exec(files["pnpm-workspace.yaml"] ?? "")?.[1];
+      if (!override) drift.push("pnpm-workspace.yaml has no vite override");
+      else if (override !== vitePlus) {
+        drift.push(`pnpm-workspace.yaml points vite at ${override}, not ${vitePlus}`);
+      }
+      if (deps.vite) drift.push(`depends on vite ${deps.vite} directly`);
+      return { value: own, drift };
+    },
+    // Moves vite-plus and the override together. A repository not on Vite+ moves by hand.
+    fix: {
+      in: "files",
+      apply: (dir, std) => {
+        pin(dir, std, "vite-plus");
+        const want = versionsIn(std)["vite-plus"];
+        const workspace = join(dir, "pnpm-workspace.yaml");
+        const text = read(workspace);
+        if (want && OVERRIDE.test(text)) {
+          writeFileSync(workspace, text.replace(OVERRIDE, `vite-plus-core@${want}`));
+        }
+      },
+    },
+  },
+  version("versions.typescript", "typescript"),
+  version("versions.prose", "@amitkaps/prose"),
+  version("versions.markz", "@amitkaps/markz"),
+  version("versions.cf", "cf"),
+  version("versions.cf-vite-plugin", "@cloudflare/vite-plugin"),
+  version("versions.wrangler", "wrangler"),
+  version("versions.publint", "publint"),
   {
     id: "scripts.required",
-    group: "Setup",
     check: ({ pkg, worker: site }) => {
       const scripts = pkg.scripts ?? {};
       // A tool, private and with no site, has nothing to serve or build.
@@ -155,7 +276,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.check",
-    group: "Setup",
     check: ({ pkg, vitePlus }) => {
       const check = pkg.scripts?.check;
       if (!vitePlus || !check) return undefined;
@@ -164,7 +284,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.fix",
-    group: "Setup",
     check: ({ pkg, vitePlus }) => {
       const fix = pkg.scripts?.fix;
       if (!vitePlus || !fix) return undefined;
@@ -175,7 +294,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.one-checker",
-    group: "Setup",
     check: ({ pkg, vitePlus }) => {
       if (!vitePlus) return undefined;
       return drifted(
@@ -187,7 +305,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.verify",
-    group: "Setup",
     check: ({ pkg }) => {
       const verify = pkg.scripts?.verify;
       if (!verify) return undefined;
@@ -200,7 +317,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.prose",
-    group: "Setup",
     check: ({ pkg }) => {
       const prose = pkg.scripts?.prose;
       // prose's own repository runs its command line from source.
@@ -210,7 +326,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.preview",
-    group: "Setup",
     check: ({ pkg }) => {
       const preview = pkg.scripts?.preview;
       if (!preview) return undefined;
@@ -224,7 +339,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "scripts.pnpm-names",
-    group: "Setup",
     check: ({ pkg }) =>
       drifted(
         PNPM_COMMANDS.filter((name) => pkg.scripts?.[name]).map(
@@ -234,7 +348,6 @@ export const RULES: Rule[] = [
   },
   {
     id: "github.rules",
-    group: "Setup",
     check: ({ rules }) => {
       if (!rules) return undefined;
       // GitHub's rate limit isn't drift: the check says it wasn't made.

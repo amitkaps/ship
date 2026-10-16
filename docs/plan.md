@@ -24,7 +24,12 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 
 ## Next, in order
 
-1. Move the other checks to rules with ids, part by part, as the scripts, pnpm's pin and the branch rules have moved. Each moves with its words in the standard and, where it can, a fix.
+1. Move the other checks to rules with ids, one part of the standard in each pull request, with its words in the standard and, where it can, a fix. Tick a part in the pull request that moves it.
+   - [x] Versions: Node, pnpm and the shared tools
+   - [ ] Toolchain: Types, Lint, Editor, and the cooldown in `pnpm-workspace.yaml`
+   - [ ] Cloudflare: the config, a prose site, wrangler, internal sites
+   - [ ] GitHub, Agents and Docs: Actions, `AGENTS.md`, the docs
+   - [ ] Releases: the release workflow, the package, the labels
 2. Build `pnpm new` from the fixes, so a new repository is an empty one with every fix applied, and the generator can't follow the standard any less than `pnpm align` does.
 3. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
 
