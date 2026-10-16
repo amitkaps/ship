@@ -21,44 +21,19 @@ The build writes the scripts here.
 ```=html
 <style>
   :is(#checks-table, #scripts-table) {
-    width: min(var(--wide), calc(100cqw - var(--docked) - 2 * var(--side)));
-    max-width: none;
-    overflow-x: auto;
-    font-size: var(--text-s);
-    & table {
-      display: table;
-      table-layout: fixed;
-      width: 100%;
-      min-width: 56rem;
-      max-width: none;
-    }
     & col.ask {
       width: 12rem;
-    }
-    & th,
-    & td {
-      vertical-align: top;
-    }
-    & th:first-child {
-      position: sticky;
-      left: 0;
-      z-index: 1;
-      background: var(--paper);
     }
     & th small {
       display: block;
       font-weight: normal;
       color: var(--muted);
-      white-space: normal;
-    }
-    & tbody th {
-      white-space: nowrap;
     }
     & .group th {
       color: var(--muted);
       font-size: var(--text-xs);
       font-weight: normal;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
     }
     & td ul {
