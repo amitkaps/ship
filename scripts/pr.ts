@@ -114,19 +114,27 @@ console.log(url);
  * Asks GitHub every ten seconds, and stops at the first check that fails, with the pull request
  * left open to fix and run again. A check counts by its latest run, since adding a label starts
  * a new run that cancels the old one.
+ *
+ * A pull request that falls behind `main`, because another merged first, has its branch updated,
+ * so CI runs again on what it would merge. `main` requires a branch that's up to date, and
+ * auto-merge doesn't update one.
  */
 type Check = { name?: string; conclusion?: string; startedAt?: string };
-type State = { state: string; statusCheckRollup: Check[] };
+type State = { state: string; mergeStateStatus: string; statusCheckRollup: Check[] };
 const FAILED = ["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"];
 
 if (values.wait) {
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 10_000));
     const pr = JSON.parse(
-      output("gh", "pr", "view", branch, "--json", "state,statusCheckRollup"),
+      output("gh", "pr", "view", branch, "--json", "state,mergeStateStatus,statusCheckRollup"),
     ) as State;
     if (pr.state === "MERGED") break;
     if (pr.state === "CLOSED") fail(`${url} was closed without merging.`);
+    if (pr.mergeStateStatus === "BEHIND") {
+      run("gh", "pr", "update-branch", branch);
+      continue;
+    }
     const latest = new Map<string, Check>();
     for (const check of pr.statusCheckRollup) {
       const seen = latest.get(check.name ?? "");
