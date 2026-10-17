@@ -12,6 +12,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **Some script names never run.** `pnpm deploy`, `audit`, `publish` and `ci` are pnpm's own commands, so a script by one of those names is skipped. That's why the deploy script is `ship`.
 - **`npx` refuses to run where `devEngines` names pnpm.** Use `pnpm exec` for an installed tool, and `pnpm dlx` for one that isn't.
 - **A list of exceptions to the wait needed an edit on every release.** pnpm rewrote `minimumReleaseAgeExclude` on install, in a form `vp check` rejects. The wait is on everywhere with `@amitkaps/*` excluded, a pattern pnpm keeps, so a release changes nothing.
+- **A hand pin inside the wait is let in, not refused.** Pinning the Cloudflare betas a day after their release made `pnpm install` add each new package to `minimumReleaseAgeExclude`, and `versions.cooldown` failed `new.test.ts`. Check `pnpm view <name> time` before pinning a beta. If a pin went in too soon, move it back and restore `pnpm-lock.yaml` from `main`, since the lockfile still holds the rejected versions.
 - **Turning the wait back on failed a lockfile that had skipped it.** `pnpm install` passed, but the frozen install CI runs checks each locked version against the wait. Run `pnpm install --frozen-lockfile` locally before pushing a change to these settings.
 
 ## Vite+
