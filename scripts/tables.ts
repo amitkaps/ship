@@ -84,8 +84,9 @@ function checkCell(result: Result, index: number): string {
   return `<td class="bad">${value.trim()}<ul>${list}</ul></td>`;
 }
 
+// The label sits in the first column, which stays put as the table scrolls, not across the row.
 const group = (results: Result[], label: string): string =>
-  `<tr class="group"><th colspan="${results.length + 1}" scope="rowgroup">${label}</th></tr>`;
+  `<tr class="group"><th scope="rowgroup">${label}</th><td colspan="${results.length}"></td></tr>`;
 
 // A rule's line comes from the standard's Markdown, so its code spans stay code and its links
 // keep only their text.

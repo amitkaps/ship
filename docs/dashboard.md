@@ -24,6 +24,11 @@ The build writes the scripts here.
     & col.ask {
       width: 12rem;
     }
+    & thead th:first-child {
+      position: sticky;
+      left: 0;
+      background: var(--paper);
+    }
     & th small {
       display: block;
       font-weight: normal;
