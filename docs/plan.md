@@ -16,7 +16,7 @@ Merging a version bump releases a package, with npm's 2FA approval the one step 
 
 ### The standard
 
-The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the dashboard check them. `pnpm drift` only reads, and `pnpm align` writes: a pull request for each repository's files, and their GitHub and Worker settings directly. Versions come from this repository, not from npm. Each rule has an id, stated once in the standard, with its check and its fix in `scripts/rules.ts`. Every repository opens its pull requests with `pnpm pr` and cleans up with `pnpm gone`, from files copied from here.
+The toolchain, scripts, branch rules, agents' instructions and release files are the same everywhere, and `pnpm drift` and the dashboard check them. `pnpm drift` only reads, and `pnpm align` writes: a pull request for each repository's files, and their GitHub and Worker settings directly. Versions come from this repository, not from npm. Its first run by hand moved vite-plus 1.3.0 through every repository, with exact pins kept exact. Each rule has an id, stated once in the standard, with its check and its fix in `scripts/rules.ts`. Every repository opens its pull requests with `pnpm pr` and cleans up with `pnpm gone`, from files copied from here.
 
 ### Sites
 
@@ -24,8 +24,7 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 
 ## Next, in order
 
-1. Run `pnpm align` by hand, the first time, and fix what it trips on: opening the pull requests, and whether exact pins stay exact.
-2. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
+1. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
 
 ## Later
 
