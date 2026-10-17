@@ -112,9 +112,11 @@ console.log(url);
  * # Waiting for the merge
  *
  * Asks GitHub every ten seconds, and stops at the first check that fails, with the pull request
- * left open to fix and run again.
+ * left open to fix and run again. A check counts by its latest run, since adding a label starts
+ * a new run that cancels the old one.
  */
-type State = { state: string; statusCheckRollup: { name?: string; conclusion?: string }[] };
+type Check = { name?: string; conclusion?: string; startedAt?: string };
+type State = { state: string; statusCheckRollup: Check[] };
 const FAILED = ["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"];
 
 if (values.wait) {
@@ -125,7 +127,12 @@ if (values.wait) {
     ) as State;
     if (pr.state === "MERGED") break;
     if (pr.state === "CLOSED") fail(`${url} was closed without merging.`);
-    const failed = pr.statusCheckRollup.find((check) => FAILED.includes(check.conclusion ?? ""));
+    const latest = new Map<string, Check>();
+    for (const check of pr.statusCheckRollup) {
+      const seen = latest.get(check.name ?? "");
+      if ((check.startedAt ?? "") >= (seen?.startedAt ?? "")) latest.set(check.name ?? "", check);
+    }
+    const failed = [...latest.values()].find((check) => FAILED.includes(check.conclusion ?? ""));
     if (failed) fail(`${failed.name ?? "A check"} failed on ${url}.`);
   }
   run("git", "switch", "--quiet", "main");
