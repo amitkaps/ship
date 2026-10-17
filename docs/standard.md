@@ -293,7 +293,7 @@ Every repository in the standard is in `REPOS`, in [scripts/survey.ts](../script
 `pnpm drift` reads and `pnpm align` writes, each for every repository or the ones named.
 
 - **drift** checks every repository's files, from GitHub's `main`, or from a folder named on the command line, to see a fix before it's pushed. With `gh` logged in it checks the merge settings too, and with `cf` the Workers' build settings, and without a login it says what it couldn't check.
-- **align** moves this repository first: its libraries and tools, the Vite+ override and the catalog, each within its major version. Then it aligns the others with that, from a fresh clone of each `main`. Every shared tool, the override and the editor settings come from here, and each repository's own libraries move within their majors. A pull request opens where `verify` passes, with auto-merge on, and lists any new major left for review. GitHub's settings and the Worker's are written directly, since there's no file to review.
+- **align** moves this repository first: its libraries and tools, the Vite+ override and the catalog, each within its major version. Then it aligns the others with that, from a fresh clone of each `main`. Every shared tool, the override and the editor settings come from here, and each repository's own libraries move within their majors. A pull request opens where `verify` passes, with auto-merge on, and lists any new major left for review. GitHub's settings and the Worker's are written directly, since there's no file to review. Once the pull requests merge, align rebuilds this repository's site, so the dashboard shows them.
 
 A change to the standard itself, like a new check, is a pull request here, and the next `pnpm align` carries it.
 
