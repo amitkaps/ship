@@ -314,7 +314,8 @@ for (const outcome of outcomes) {
  * open would show the versions they replace.
  *
  * It asks GitHub every ten seconds, as `pnpm pr --wait` does. A check counts by its latest run,
- * since adding a label starts a new run that cancels the old one. A pull request that fails or
+ * since adding a label starts a new run that cancels the old one. One that falls behind `main` has
+ * its branch updated, as `pnpm pr --wait` does. A pull request that fails or
  * closes is reported and not waited for. The rebuild runs once any of them merged, and needs `cf`
  * logged in.
  */
@@ -324,10 +325,24 @@ const FAILED = ["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"];
 async function merge(url: string): Promise<string | undefined> {
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 10_000));
-    const { stdout } = await run("gh", ["pr", "view", url, "--json", "state,statusCheckRollup"]);
-    const pr = JSON.parse(stdout) as { state: string; statusCheckRollup: Check[] };
+    const { stdout } = await run("gh", [
+      "pr",
+      "view",
+      url,
+      "--json",
+      "state,mergeStateStatus,statusCheckRollup",
+    ]);
+    const pr = JSON.parse(stdout) as {
+      state: string;
+      mergeStateStatus: string;
+      statusCheckRollup: Check[];
+    };
     if (pr.state === "MERGED") return undefined;
     if (pr.state === "CLOSED") return `${url} was closed without merging`;
+    if (pr.mergeStateStatus === "BEHIND") {
+      await run("gh", ["pr", "update-branch", url]);
+      continue;
+    }
     const latest = new Map<string, Check>();
     for (const check of pr.statusCheckRollup) {
       const seen = latest.get(check.name ?? "");
