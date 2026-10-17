@@ -50,6 +50,7 @@ What setting up the repositories' builds and deploys taught, for whoever changes
 - **A lesson named a private repository.** It reached the docs, a commit and a pull request before it was caught, and GitHub keeps the old text. `AGENTS.md` now says never to name one, anywhere this repository reaches.
 - **Copied rules drift.** The `@prose` rules had started to differ across four `AGENTS.md` files. Each links to the one copy in prose's docs, and the survey checks the section word for word.
 - **A pull request behind `main` waited forever.** Two open at once in ship, and whichever merged second sat blocked, since `main` requires an up-to-date branch and auto-merge doesn't update one. Turning that rule off would let two changes that pass alone break `main` together, and a merge queue needs an organisation. So `pnpm pr --wait` and align's wait update a branch that falls behind. Use `--wait` when another pull request is open in the same repository.
+- **A pull request read as behind its own merge.** The first `--wait` after that change failed on a pull request that had merged. For about a second, the squash commit was on `main` and the pull request was still open, so GitHub called it behind, and updating it failed with nothing to update. A failed update now means asking again, and the next look sees it merged.
 
 ## Releases
 
