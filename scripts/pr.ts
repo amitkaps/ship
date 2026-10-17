@@ -132,7 +132,11 @@ if (values.wait) {
     if (pr.state === "MERGED") break;
     if (pr.state === "CLOSED") fail(`${url} was closed without merging.`);
     if (pr.mergeStateStatus === "BEHIND") {
-      run("gh", "pr", "update-branch", branch);
+      // A pull request that's merging reads as behind its own merge for a moment, and then there's
+      // nothing to update, so a failed update only means asking again.
+      try {
+        run("gh", "pr", "update-branch", branch);
+      } catch {}
       continue;
     }
     const latest = new Map<string, Check>();

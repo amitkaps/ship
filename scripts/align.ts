@@ -340,7 +340,9 @@ async function merge(url: string): Promise<string | undefined> {
     if (pr.state === "MERGED") return undefined;
     if (pr.state === "CLOSED") return `${url} was closed without merging`;
     if (pr.mergeStateStatus === "BEHIND") {
-      await run("gh", ["pr", "update-branch", url]);
+      // A pull request that's merging reads as behind its own merge for a moment, so a failed update
+      // only means asking again.
+      await run("gh", ["pr", "update-branch", url]).catch(() => undefined);
       continue;
     }
     const latest = new Map<string, Check>();
