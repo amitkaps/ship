@@ -172,6 +172,20 @@ const version = (id: string, name: string): Rule => ({
   fix: { in: "files", apply: (dir, std) => pin(dir, std, name) },
 });
 
+/** @prose
+ * # The betas
+ *
+ * The packages `versions.beta` names, as code in its line of the standard, so the list is kept
+ * in one place. A version is a pre-release when its numbers are followed by a tag, as in
+ * `1.0.0-beta.17`, behind a range or not.
+ */
+export const BETA = [
+  ...(stated()
+    .find((rule) => rule.id === "versions.beta")
+    ?.text.matchAll(/`([^`]+)`/g) ?? []),
+].flatMap((match) => match[1] ?? []);
+const PRERELEASE = /^[\^~<>=]*\d+\.\d+\.\d+-/;
+
 const node = standard.devEngines?.runtime;
 const vitePlus = VERSIONS["vite-plus"];
 const OVERRIDE = /vite-plus-core@[\w.-]+/;
@@ -562,6 +576,19 @@ export const RULES: Rule[] = [
   version("versions.markz", "@amitkaps/markz"),
   version("versions.cf", "cf"),
   version("versions.cf-vite-plugin", "@cloudflare/vite-plugin"),
+  {
+    id: "versions.beta",
+    check: ({ deps }) => {
+      const pre = Object.entries(deps).filter(([, value]) => PRERELEASE.test(value));
+      if (!pre.length) return undefined;
+      return drifted(
+        pre.flatMap(([name, value]) => {
+          if (!BETA.includes(name)) return [`${name} is on a pre-release, ${value}`];
+          return /^\d/.test(value) ? [] : [`${name} is ${value}, not an exact build`];
+        }),
+      );
+    },
+  },
   version("versions.wrangler", "wrangler"),
   version("versions.publint", "publint"),
   {
