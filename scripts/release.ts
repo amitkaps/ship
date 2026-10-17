@@ -1,11 +1,12 @@
 /** @prose
  * # Release
  *
- * Opens the pull request that releases a package: `pnpm release sitez 0.5.0`. It works on
- * GitHub, like [align.ts](align.ts), so it needs `gh` logged in and no checkout of the
+ * Opens the pull request that releases a package, like `pnpm release sitez 0.5.0`. Once CI passes
+ * it merges, and the package's release workflow does the rest.
+ *
+ * It works on GitHub, like [align.ts](align.ts), so it needs `gh` logged in and no checkout of the
  * package. It sets `version` in `package.json` on a branch named `release-X.Y.Z`, then opens a
- * pull request titled `vX.Y.Z`, labelled `internal`, and turns on auto-merge. Once CI passes it
- * merges, and the package's release workflow does the rest.
+ * pull request titled `vX.Y.Z`, labelled `internal`, and turns on auto-merge.
  *
  * The pull request's description is the release's summary, which goes above the generated notes.
  * `--notes "…"` gives it, and without that the editor opens for it. Left empty, the release has

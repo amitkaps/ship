@@ -5,7 +5,7 @@
  * [dashboard.ts](dashboard.ts) puts each in its section of the page prose built, so the page
  * stays plain HTML with no script.
  *
- * The first table opens with where each repository lives: its name links to it on GitHub, and
+ * The first table opens with where each repository lives. Its name links to it on GitHub, and
  * two rows link to its website and to the version npm gives people. Each is a dash where it
  * doesn't apply, and a site whose config names no domain says so, in red.
  *

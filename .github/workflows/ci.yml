@@ -2,7 +2,7 @@
 # # CI
 #
 # Checks every pull request and every push to `main` with `pnpm run verify`, the same script
-# Cloudflare runs before each deploy. It doesn't deploy: the Worker's Git integration does
+# Cloudflare runs before each deploy. It doesn't deploy. The Worker's Git integration does
 # that. The job is named `ci`, the check that branch protection requires.
 name: CI
 

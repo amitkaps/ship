@@ -12,7 +12,7 @@ What a repository must have follows from three facts, each read from where it al
 
 - **A package** is published to npm, and its `package.json` isn't `private`.
 - **A site** deploys to a Cloudflare Worker, and has a Worker config.
-- **A tool** is neither: scripts run on a laptop.
+- **A tool** is neither, just scripts run on a laptop.
 
 A site or a tool is **internal** when its repository is private on GitHub. An internal site is still a site, deployed the same way, but behind Cloudflare Access, as [Internal sites](#internal-sites) says. A package can't be internal, since npm is public.
 
@@ -65,7 +65,7 @@ Bump deliberately, everywhere at once. Being on the latest pnpm doesn't matter. 
 
 ## Other versions
 
-The tools every repository shares are on one version, written the same way, so moving one never leaves two repositories to reconcile. Where this repository uses a tool, its `package.json` has the version. Where it doesn't, the `catalog` in its `pnpm-workspace.yaml` does, which nothing here installs. npm isn't read: a new release is drift only once this repository moves to it, and `pnpm align` moves it, past pnpm's one-day wait.
+The tools every repository shares are on one version, written the same way, so moving one never leaves two repositories to reconcile. Where this repository uses a tool, its `package.json` has the version. Where it doesn't, the `catalog` in its `pnpm-workspace.yaml` does, which nothing here installs. npm isn't read. A new release is drift only once this repository moves to it, and `pnpm align` moves it, past pnpm's one-day wait.
 
 - `versions.types-node`: `@types/node` is this repository's, where a repository has it. It's the major of the Node that `engines` allows, so code can't use newer APIs.
 - `versions.vite-plus`: every repository is on this repository's `vite-plus`, with the override at the same version and no direct `vite`. [Toolchain](#toolchain-vite) says why.
@@ -79,13 +79,13 @@ The tools every repository shares are on one version, written the same way, so m
 
 A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 
-`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: the cooldown, `allowBuilds` (esbuild and workerd, when wrangler or the Cloudflare plugin is installed), and the Vite+ override.
+`pnpm-workspace.yaml` is a settings file, not a workspace. Every repository has the same three settings: the cooldown, `allowBuilds` and the Vite+ override. `allowBuilds` lets esbuild and workerd run their install scripts, when wrangler or the Cloudflare plugin is installed.
 
 - `versions.cooldown`: pnpm's one-day wait on a new version is kept, with only `@amitkaps/*` excluded. A bad release can be caught before it's installed, and our own skip the wait, since each reaches npm only after the owner approves it.
 
 ## Held
 
-When a tool a repository depends on can't support the standard yet, the check is held: it shows amber on the dashboard with its reason, and doesn't fail `pnpm drift`. Each hold says when to look again, like svelte-check accepting TypeScript 7. Holds are listed in [scripts/survey.ts](../scripts/survey.ts).
+When a tool a repository depends on can't support the standard yet, the check is held. It shows amber on the dashboard with its reason, and doesn't fail `pnpm drift`. Each hold says when to look again, like svelte-check accepting TypeScript 7. Holds are listed in [scripts/survey.ts](../scripts/survey.ts).
 
 A hold is for what a tool can't do, never for a preference. The point of one standard is that a choice like Vite+ is made once and paid for once, not argued again in each repository. A hold whose check stops drifting fails `pnpm drift` until it's removed, so none outlives its reason.
 
@@ -179,7 +179,7 @@ worker: {
 },
 ```
 
-The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts: a private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without turning off preview URLs. With `cf` logged in, it also checks that an Access application with a policy covers the domain.
+The config is where the repository says it's internal, with a `@prose` comment saying why, not `package.json`, whose `private` already means "not on npm" and which can't hold a comment. `pnpm drift <folder>` reads both facts. A private repository's site whose config leaves either address on has drifted, and so has a site whose config turns `workers.dev` off without turning off preview URLs. With `cf` logged in, it also checks that an Access application with a policy covers the domain.
 
 ## GitHub
 
@@ -215,7 +215,7 @@ Every repository has the same docs, so anyone, or any agent, finds the same thin
 | `docs/lessons.md`     | what building it taught, each lesson what happened and what to do about it   |
 | `docs/usage.md`       | a package's install and use, and a section for agents                        |
 
-The README is the site's home page when prose builds it, so it reads as one: what it is, a short example, and the commands a user runs, like a package's command or this repository's `drift`. The repository's own scripts, like `dev` and `verify`, are the standard's, and are left to `development.md`, which links the standard for the shared toolchain, scripts and workflows rather than describing them.
+The README is the site's home page when prose builds it, so it reads as one. It says what it is, gives a short example, and lists the commands a user runs, like a package's command or this repository's `drift`. The repository's own scripts, like `dev` and `verify`, are the standard's, and are left to `development.md`, which links the standard for the shared toolchain, scripts and workflows rather than describing them.
 
 A site has no `usage.md`, since the site is what people use, unless it has commands to run, as this repository does. Any other doc is the repository's own, like markz's grammar, and goes in the `nav` too. `development.md` links to this standard for what's shared rather than repeating it. `docs.files`'s fix writes a first version of each one that's missing, and adds it to the `nav`, so `pnpm new` starts with all of them.
 
@@ -313,6 +313,6 @@ pnpm new <name> --tool --internal --description "What it is, in a sentence." --p
 
 `--internal` makes a site or a tool private on GitHub and leaves it out of `REPOS`, and an internal site's config turns off `workers.dev` and preview URLs. The Access application is the step left to do by hand.
 
-It writes only what's the repository's own: its name and description, its source, the Vite config and strict types for its kind, and CI, each built from this repository's files rather than a template. Then it runs every rule's fix, the ones `pnpm align` runs, which write the rest: the versions and engines, the shared scripts, the editor settings, the cooldown, the shared `AGENTS.md` sections, a package's release files and packing, and a first version of each doc. So a new repository can't follow the standard any less than `align` makes an old one. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and writes its GitHub settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
+It writes only what's the repository's own: its name and description, its source, the Vite config and strict types for its kind, and CI, each built from this repository's files rather than a template. Then it runs every rule's fix, the ones `pnpm align` runs. They write the rest: the versions and engines, the shared scripts, the editor settings, the cooldown, the shared `AGENTS.md` sections, a package's release files and packing, and a first version of each doc. So a new repository can't follow the standard any less than `align` makes an old one. Then it installs, formats with `fix`, runs `verify` and makes the first commit. `--push` creates the repository on GitHub, pushes that commit and writes its GitHub settings, as `pnpm align` does. That first push is the only one to `main` the standard allows, since the rules aren't on yet. It prints what's left: adding the repository to `REPOS`, and the Worker or npm's setup. A SvelteKit app starts from base instead, and is brought in like any other.
 
 `pnpm test` here generates a package, a site, a tool and an internal site, checks each against the survey and runs its `verify`, so the generator can't fall behind the standard.

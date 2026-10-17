@@ -4,7 +4,9 @@
  * Each rule of [the standard](../docs/standard.md) that has an id, like `scripts.verify`. The
  * standard states it, as a list item that opens with its id, and says why. Here is only what the
  * words can't do: the check that finds where a repository has drifted from it, and the fix, where
- * one can be automated. It's how markz's grammar names its side rules, and
+ * one can be automated.
+ *
+ * It's how markz's grammar names its side rules, and
  * [rules.test.ts](rules.test.ts) holds the two to the same ids, so a rule can't be stated without
  * a check, or checked without being stated.
  *
@@ -37,6 +39,7 @@ export type Rule = {
  *
  * A rule in the standard is a list item on one line, `` - `id`: text ``, under a heading. Its
  * part is the second-level heading it's under, like Scripts, which the dashboard groups it by.
+ *
  * The link `pnpm drift` prints goes to the nearest heading, by the slug GitHub and markz both give
  * it. Code blocks are skipped, so an example can't state a rule.
  */
@@ -249,8 +252,9 @@ const agents = read(join(here, "AGENTS.md"));
  * # The docs
  *
  * Only the files are checked, and that each is in the `nav` of `docs/README.md`, not what's in
- * them. The fix writes a first version of each one that's missing, which says what goes in each
- * section rather than leaving it empty, and adds it to the `nav`. A doc already there is left
+ * them. The fix writes a first version of each one that's missing, and adds it to the `nav`.
+ *
+ * That first version says what goes in each section rather than leaving it empty. A doc already there is left
  * alone, since it's written, not copied. `pnpm new` starts every doc this way. A README that
  * doesn't link to `docs/` is fixed by hand.
  */
@@ -379,7 +383,9 @@ const nav = (text: string): string[] =>
  * # Releases
  *
  * A package releases the way every package does, with the files in [package/](../package/README.md)
- * copied in unchanged, and CI's `Label` step from this repository's, word for word. The fix copies
+ * copied in unchanged, and CI's `Label` step from this repository's, word for word.
+ *
+ * The fix copies
  * the files, and puts the step before the install and the trigger on the pull request, where a
  * workflow has them. One laid out otherwise is left to do by hand, and the check still says so.
  */

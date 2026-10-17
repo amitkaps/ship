@@ -3,7 +3,9 @@
  *
  * Writes the survey into the dashboard page that `prose build` made from
  * [docs/dashboard.md](../docs/dashboard.md), so the live site shows how far each repository has
- * drifted as of its last deploy. The doc holds the words and an empty section for each table,
+ * drifted as of its last deploy.
+ *
+ * The doc holds the words and an empty section for each table,
  * and this fills them, the way markz's `pnpm quality` adds its report beside the pages prose
  * built. The page keeps prose's bar, styles and contents, since prose wrote it.
  *
