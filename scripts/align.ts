@@ -74,11 +74,13 @@ async function sh(dir: string, log: string[], cmd: string, ...args: string[]): P
  * major version they're on, which pnpm's one-day wait allows.
  *
  * A new major can change what the code has to do, so it's listed in the pull request rather than taken. Below 1.0, a minor counts as a
- * major, as npm's ranges treat it. The beta packages, cf and its Vite plugin, are pinned by hand,
- * as [development.md](../docs/development.md#beta-packages) says, since their tags don't say which
- * build goes with which.
+ * major, as npm's ranges treat it.
+ *
+ * A pre-release is pinned by hand, as [development.md](../docs/development.md#beta-packages)
+ * says, since its tags don't say which build goes with which. Once npm's latest for it is a
+ * release at its major or later, that's listed too.
  */
-const BETA = ["cf", "@cloudflare/vite-plugin"];
+const major = (version: string): number => Number(version.split(".")[0]);
 
 function breaking(from: string, to: string): boolean {
   const [a = 0, b = 0] = from.split(".").map(Number);
@@ -98,7 +100,13 @@ async function update(dir: string, log: string[], skip: string[]): Promise<strin
   const minor: string[] = [];
   const majors: string[] = [];
   for (const [name, { current, latest }] of Object.entries(found)) {
-    if (skip.includes(name) || BETA.includes(name)) continue;
+    if (skip.includes(name)) continue;
+    if (current.includes("-")) {
+      if (!latest.includes("-") && major(latest) >= major(current)) {
+        majors.push(`${name} ${latest}, a release of the beta ${current}`);
+      }
+      continue;
+    }
     if (breaking(current, latest)) majors.push(`${name} ${latest}, from ${current}`);
     else minor.push(name);
   }

@@ -28,7 +28,7 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 
 ## Later
 
-- The beta packages move to their releases, when they graduate, as [development](development.md#beta-packages) lists.
+- The beta packages that [`versions.beta`](standard.md#other-versions) names move to their releases when they graduate, which `pnpm align` reports.
 - base moves to cf when SvelteKit's adapter writes cf's Build Output, and wrangler leaves the catalog with it.
 - base moves to TypeScript 7 when svelte-check's peer range takes it.
 

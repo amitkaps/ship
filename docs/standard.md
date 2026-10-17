@@ -72,10 +72,13 @@ The tools every repository shares are on one version, written the same way, so m
 - `versions.typescript`: `typescript` is the catalog's, where a repository has it.
 - `versions.prose`: `@amitkaps/prose` is this repository's, where a repository has it.
 - `versions.markz`: `@amitkaps/markz` is this repository's, where a repository has it.
-- `versions.cf`: `cf` is this repository's, where a repository deploys with it. It's pinned by hand while it's beta.
-- `versions.cf-vite-plugin`: `@cloudflare/vite-plugin` is this repository's, where a repository deploys with cf. It's pinned by hand while it's beta, at the build that goes with `cf`.
+- `versions.cf`: `cf` is this repository's, where a repository deploys with it.
+- `versions.cf-vite-plugin`: `@cloudflare/vite-plugin` is this repository's, where a repository deploys with cf, at the build that goes with `cf`.
+- `versions.beta`: only `cf` and `@cloudflare/vite-plugin` are on a pre-release, each pinned to an exact build.
 - `versions.wrangler`: `wrangler` is the catalog's, while a repository is still on it.
 - `versions.publint`: `publint` is the catalog's, where a package has it.
+
+A beta's tags don't say which build goes with which, so it's moved by hand. `pnpm align` lists one in its pull request once npm's latest is a release, and then it leaves `versions.beta`. [Development](development.md#beta-packages) says how.
 
 A repository's own libraries, like svelte or micromark, are its own to choose. `pnpm align` moves them within their major version, and lists a new major in its pull request for review.
 

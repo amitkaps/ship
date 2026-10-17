@@ -6,8 +6,9 @@
  * not yet, is under one of the standard's parts, which is how the dashboard groups it.
  */
 import { expect, test } from "vite-plus/test";
-import { RULES, parts, stated } from "./rules.ts";
-import { CHECKS } from "./survey.ts";
+import { BETA, RULES, parts, stated } from "./rules.ts";
+import { standard } from "./ship.ts";
+import { CHECKS, type Repo } from "./survey.ts";
 
 const checked = RULES.map((rule) => rule.id);
 const statedIds = stated().map((s) => s.id);
@@ -41,4 +42,22 @@ test("every check is under a part of the standard", () => {
 
 test("a part is its second-level heading", () => {
   expect(parts("## Scripts\n\n### The editor\n\n```md\n## An example\n```\n")).toEqual(["Scripts"]);
+});
+
+test("only the standard's betas are on a pre-release, each an exact build", () => {
+  const rule = RULES.find((r) => r.id === "versions.beta");
+  const drift = (deps: Record<string, string>) => rule?.check({ deps } as Repo)?.drift;
+  const [beta = ""] = BETA;
+  expect(drift({ [beta]: "1.0.0-beta.17" })).toEqual([]);
+  expect(drift({ [beta]: "^1.0.0-beta.17" })).toEqual([
+    `${beta} is ^1.0.0-beta.17, not an exact build`,
+  ]);
+  expect(drift({ zod: "4.0.0-beta.1" })).toEqual(["zod is on a pre-release, 4.0.0-beta.1"]);
+  expect(drift({ zod: "^4.0.0", vite: "npm:@voidzero-dev/vite-plus-core@1.3.0" })).toBeUndefined();
+});
+
+test("the betas this repository is on are the ones the standard names", () => {
+  const deps = { ...standard.dependencies, ...standard.devDependencies };
+  const pre = Object.keys(deps).filter((name) => /^\d+\.\d+\.\d+-/.test(deps[name] ?? ""));
+  expect(pre.sort()).toEqual([...BETA].sort());
 });

@@ -20,11 +20,6 @@ The Worker `ship` is connected to this repository, and each push to `main` build
 
 ## Beta packages
 
-Two packages are still beta. Check them with `pnpm view <name> dist-tags`.
+The packages still on a beta are the ones [`versions.beta`](standard.md#other-versions) names, and `package.json` has their builds. `pnpm align` leaves them alone, since their tags don't say which build goes with which. It lists one in its pull request once npm's latest for it is a release at the beta's major or later.
 
-| Package                   | Pinned                     | Status (2026-10-16)                 | Done when                      |
-| ------------------------- | -------------------------- | ----------------------------------- | ------------------------------ |
-| `@cloudflare/vite-plugin` | `2.0.0-beta.sha-67fa336fd` | `beta` tag only; `latest` is 1.64.0 | `latest` is a 2.x release      |
-| `cf`                      | `1.0.0-beta.17`            | `latest` is the beta                | `latest` is a non-beta release |
-
-`pnpm align` leaves both alone, since their tags don't say which build goes with which. When a package graduates, update the pins in `package.json` and the table above. Then run `pnpm run verify` and a deploy from the Git-connected Worker before you rely on it.
+To move one, pin the release in `package.json` and take it out of `versions.beta`. Then run `pnpm run verify` and a deploy from the Git-connected Worker before you rely on it.
