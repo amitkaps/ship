@@ -127,9 +127,11 @@ export function writeRuleset(repo: string): void {
 /** @prose
  * # Cloudflare
  *
- * `cf`'s login reads and writes the Workers. `cf` won't pick an account in a script when the login
- * has several, so the one used is the account named like the GitHub owner, which is where every
- * Worker is, or the only one. Nothing is stored, and `CLOUDFLARE_ACCOUNT_ID`, when set, wins. The
+ * `cf`'s login reads and writes the Workers. Nothing is stored, and `CLOUDFLARE_ACCOUNT_ID`, when
+ * set, wins.
+ *
+ * `cf` won't pick an account in a script when the login has several, so the one used is the
+ * account named like the GitHub owner, which is where every Worker is, or the only one. The
  * answer is the reason it can't, or nothing when it can.
  */
 export function cloudflareLogin(): string | undefined {
@@ -254,6 +256,7 @@ export function writeWorker(name: string): string[] {
  *
  * An internal site is private because an Access application covers its domain, and Access
  * lets in only who its policies name. One with no policy lets nobody in, so it's drift too.
+ *
  * Access is turned on once per account, in the Zero Trust dashboard, and until it is, the
  * lookup fails and says so. Access isn't written, since who it lets in is a choice for each site.
  */

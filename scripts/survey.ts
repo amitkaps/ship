@@ -73,7 +73,7 @@ async function fromGitHub(repo: string): Promise<Files> {
  * # A repository's Worker
  *
  * A repository deploys if it has a Cloudflare config, and the Worker's name is read from it.
- * `cloudflare.config.ts` is the target; `wrangler.jsonc` and `wrangler.toml` are the ones
+ * `cloudflare.config.ts` is the one to use, and `wrangler.jsonc` and `wrangler.toml` are the ones
  * still on wrangler. A regular expression is enough, since each file states `name` once.
  *
  * Its domain is read the same way, the first in `domains` or the first route's `pattern`, and
@@ -141,7 +141,7 @@ export type BranchRule = { type: string; parameters?: Record<string, unknown> };
  * # GitHub's rate limit
  *
  * Without a login, GitHub answers 60 requests an hour, and each survey makes a few for every
- * repository, so a handful of runs can use them up. That's not drift: the check says it wasn't
+ * repository, so a handful of runs can use them up. That's not drift. The check says it wasn't
  * made, and doesn't fail `pnpm drift`. `pnpm drift` logs in with `gh` when it can.
  */
 class RateLimit extends Error {
@@ -172,8 +172,10 @@ const branchRules = (repo: string) =>
  *
  * A private repository's site is internal. It deploys like any other, behind Cloudflare Access,
  * with `workers.dev` and preview URLs turned off, since Access covers only the domain and either
- * would serve the same Worker without a login. Turning `workers.dev` off in the config is how
- * the repository says so in its own files, so a folder that isn't on GitHub yet, or one read
+ * would serve the same Worker without a login.
+ *
+ * Turning `workers.dev` off in the config is how the repository says so in its own files. So a
+ * folder that isn't on GitHub yet, or one read
  * without a login, is held to the same rule. The listed repositories are public, since the home
  * page names them, so only a folder is looked up on GitHub.
  *
@@ -216,7 +218,9 @@ export type Repo = {
  *
  * Each check covers one part of the standard, and says what it expects in a line the page shows
  * beside it. The checks run, and the page lists them, in the order of the standard's parts, so
- * the page reads like the standard. A check returns what
+ * the page reads like the standard.
+ *
+ * A check returns what
  * the repository has, like the version it pins, and what has drifted, which is empty when
  * nothing has. It returns `undefined` when it doesn't apply, like the Cloudflare check for a
  * package with no site, or the typescript check for a repository without typescript. A check
@@ -239,7 +243,7 @@ export type Finding = {
  * again. A held check shows amber on the page with its reason, and doesn't fail `pnpm drift`.
  *
  * A hold is for what a tool can't do, never for a choice. When the reason goes away, so does
- * the hold: a held check that has nothing left to hold reports that as drift, so a hold can't
+ * the hold. A held check that has nothing left to hold reports that as drift, so a hold can't
  * outlive its reason.
  */
 export const HELD: Record<string, Record<string, string>> = {
@@ -360,7 +364,9 @@ export async function survey(): Promise<Result[]> {
  * # A folder
  *
  * Checks a folder from disk: a checkout of a listed repository, to see a fix before it's pushed,
- * or one that isn't in `REPOS`, like one `pnpm new` just wrote or a private one. A listed
+ * or one that isn't in `REPOS`, like one `pnpm new` just wrote or a private one.
+ *
+ * A listed
  * repository's holds apply, found by the folder's name. Branch rules and labels aren't read,
  * since `pnpm align` writes them and `pnpm drift` reads them from GitHub. Whether it's private is
  * read from GitHub, under the folder's name. Its Worker comes back too, marked internal when it

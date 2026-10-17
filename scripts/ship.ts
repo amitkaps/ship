@@ -40,10 +40,11 @@ export const nodeMajor = /\d+/.exec(standard.engines?.node ?? "")?.[0];
  * # The shared versions
  *
  * Every repository that uses one of these tools is on the version this repository names, written
- * the same way, so moving one never leaves two repositories to reconcile. Most come from this
- * repository's own `package.json`. The ones it doesn't use, like wrangler, are named in the
- * `catalog` of its `pnpm-workspace.yaml`, which nothing here installs. npm isn't read: a new
- * release is drift only once this repository moves to it, which `pnpm align` does.
+ * the same way, so moving one never leaves two repositories to reconcile.
+ *
+ * Most come from this repository's own `package.json`. The ones it doesn't use, like wrangler,
+ * are named in the `catalog` of its `pnpm-workspace.yaml`, which nothing here installs. npm isn't
+ * read. A new release is drift only once this repository moves to it, which `pnpm align` does.
  */
 export const TOOLS = [
   "@types/node",

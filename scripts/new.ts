@@ -1,17 +1,18 @@
 /** @prose
  * # New
  *
- * Starts a repository that follows the standard from its first commit. `pnpm new <name> --package`
- * starts an npm package, `pnpm new <name> --site` a site on Cloudflare, and `pnpm new <name> --tool`
- * scripts run on a laptop, with no site or release. `--internal` makes a site or a tool private: its
- * GitHub repository is private, it isn't added to `REPOS`, and a site turns off `workers.dev` and
- * preview URLs, to sit behind Cloudflare Access. It writes the folder
- * next to this one, installs, formats, runs `verify` and makes the first commit, so what it hands over
+ * Starts a repository that follows the standard from its first commit. It writes the folder next
+ * to this one, installs, formats, runs `verify` and makes the first commit, so what it hands over
  * already passes.
+ *
+ * `pnpm new <name> --package` starts an npm package, `--site` a site on Cloudflare, and `--tool`
+ * scripts run on a laptop, with no site or release. `--internal` makes a site or a tool private.
+ * Its GitHub repository is private, it isn't added to `REPOS`, and a site turns off `workers.dev`
+ * and preview URLs, to sit behind Cloudflare Access.
  *
  * It writes only what's the new repository's own: its name and description, its source, the
  * Vite config for its kind, and CI. Then it runs every fix in [rules.ts](rules.ts), the same ones
- * `pnpm align` runs, and they write the rest: the versions and engines, the shared scripts, the
+ * `pnpm align` runs. They write the rest: the versions and engines, the shared scripts, the
  * editor settings, the cooldown, the shared sections of `AGENTS.md`, a package's release files,
  * and a first version of each doc. So it can't follow the standard any less than `align` does,
  * and a rule's fix reaches the next repository with no second copy here. What it does write is

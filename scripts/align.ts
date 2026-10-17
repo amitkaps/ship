@@ -70,8 +70,9 @@ async function sh(dir: string, log: string[], cmd: string, ...args: string[]): P
  * # Updates
  *
  * A repository's own libraries, like zod or happy-dom, move to their newest release within the
- * major version they're on, which pnpm's one-day wait allows. A new major can change what the code
- * has to do, so it's listed in the pull request rather than taken. Below 1.0, a minor counts as a
+ * major version they're on, which pnpm's one-day wait allows.
+ *
+ * A new major can change what the code has to do, so it's listed in the pull request rather than taken. Below 1.0, a minor counts as a
  * major, as npm's ranges treat it. The beta packages, cf and its Vite plugin, are pinned by hand,
  * as [development.md](../docs/development.md#beta-packages) says, since their tags don't say which
  * build goes with which.
@@ -107,11 +108,12 @@ async function update(dir: string, log: string[], skip: string[]): Promise<strin
 /** @prose
  * # This repository first
  *
- * The standard is this repository's versions, so `pnpm align` moves them first: its own
- * libraries and tools as above, the Vite+ override with `vite-plus`, and the `catalog` of the
- * tools it doesn't use, each resolved by pnpm in an empty folder with the same settings, so the
- * wait applies. The other repositories are then aligned with what this clone holds, so one run
- * moves everything together.
+ * The standard is this repository's versions, so `pnpm align` moves them first. The other
+ * repositories are then aligned with what this clone holds, so one run moves everything together.
+ *
+ * It moves its own libraries and tools as above, and the Vite+ override with `vite-plus`. The
+ * `catalog` of the tools it doesn't use is resolved by pnpm in an empty folder with the same
+ * settings, so the wait applies there too.
  */
 async function updateSelf(dir: string, log: string[]): Promise<string[]> {
   await sh(dir, log, "pnpm", "install");
@@ -167,8 +169,9 @@ async function alignTo(dir: string, std: string, repo: string, log: string[]): P
  * # The pull request
  *
  * After the changes, the clone installs, checks its lockfile the way CI does, writes the format
- * and lint fixes, and runs `verify`. A clean tree means the repository was already in line. The
- * pull request lists every version that moved, read from `package.json` before and after, and the
+ * and lint fixes, and runs `verify`. A clean tree means the repository was already in line.
+ *
+ * The pull request lists every version that moved, read from `package.json` before and after, and the
  * majors left for review. It's opened from a branch named `align`, which a later run updates
  * rather than opening a second one.
  */
