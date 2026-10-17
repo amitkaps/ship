@@ -6,6 +6,7 @@
  * not yet, is under one of the standard's parts, which is how the dashboard groups it.
  */
 import { expect, test } from "vite-plus/test";
+import { BROWSERS } from "./browsers.ts";
 import { BETA, RULES, parts, stated } from "./rules.ts";
 import { standard } from "./ship.ts";
 import { CHECKS, type Repo } from "./survey.ts";
@@ -54,6 +55,23 @@ test("only the standard's betas are on a pre-release, each an exact build", () =
   ]);
   expect(drift({ zod: "4.0.0-beta.1" })).toEqual(["zod is on a pre-release, 4.0.0-beta.1"]);
   expect(drift({ zod: "^4.0.0", vite: "npm:@voidzero-dev/vite-plus-core@1.3.0" })).toBeUndefined();
+});
+
+test("a build for browsers targets this repository's browsers", () => {
+  const rule = RULES.find((r) => r.id === "toolchain.browsers");
+  const list = BROWSERS.map((b) => `"${b}"`).join(", ");
+  const drift = (vite: string, site = false) =>
+    rule?.check({ files: { "vite.config.ts": vite }, worker: site || undefined } as unknown as Repo)
+      ?.drift;
+  expect(BROWSERS.length).toBeGreaterThan(0);
+  expect(drift(`pack: { platform: "node" }`)).toBeUndefined();
+  expect(drift(`publicDir: ".prose"`, true)).toBeUndefined();
+  expect(drift(`pack: { target: [${list}, "node26"] }`)).toEqual([]);
+  expect(drift(`build: { target: [${list}] }`, true)).toEqual([]);
+  expect(drift(`plugins: [sveltekit()]`, true)).toEqual(["build.target isn't set"]);
+  expect(drift(`pack: { target: ["chrome111"] }`)).toEqual([
+    `pack.target is chrome111, not ${BROWSERS.join(" ")}`,
+  ]);
 });
 
 test("the betas this repository is on are the ones the standard names", () => {

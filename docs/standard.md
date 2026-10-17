@@ -45,6 +45,20 @@ The settings make oxc the formatter, on save, with its fixes. The extensions rec
 
 Nothing about oxc goes in VS Code's user settings. A path to oxfmt there, or a config path, overrides every repository's own, and the editor formats differently from `check`.
 
+### Browsers
+
+Code shipped to browsers works in the browsers people use, with a floor for each engine rather than a date. Vite's default, Baseline Widely Available, waits 30 months for every browser and is frozen at each Vite major. But only one engine holds people back that long.
+
+- **Blink**, which is Chrome, Edge, Opera, Samsung Internet and Android's WebView: the oldest Chromium released in the last 12 months. Chrome and Firefox release every two weeks now, so a count of versions shrinks each time they speed up, and a window of time doesn't. Samsung Internet runs on a Chromium about ten months old, which is why the window is a year.
+- **Gecko**, which is Firefox: the oldest ESR Mozilla supports. It's the oldest Firefox that still gets fixes.
+- **WebKit**, which is Safari and every browser on iOS, in-app browsers too: the newest release of the major two before the current one. An iPhone that a new iOS drops stays on its last major and keeps getting point releases, so that's the oldest Safari in use. Chrome on iOS and an app's WebView run this engine too, so it covers more people than Safari's own share.
+
+- `toolchain.browsers`: a build that bundles code for browsers targets the standard's browsers, in `build.target` for an app and in `pack.target` for a package that isn't `platform: "node"`. A package that runs in Node too adds its Node to the list.
+
+The list is worked out from MDN's browser-compat-data, by [scripts/browsers.ts](../scripts/browsers.ts), as of the date of the data. The package is one of this repository's versions, so `pnpm align` moves it, and the floors move with it, with `pnpm drift` listing what then needs the new list.
+
+A target only rewrites syntax, like CSS nesting or a regular expression's flags. It adds no polyfills, so it doesn't stop code that calls an API too new for a floor. Something newer than a floor, like `::highlight()` on Firefox's ESR, is fine where it fails cleanly and the page still works. The floor is for what has to work. A prose site's page scripts and styles aren't built by Vite, so the target doesn't reach them.
+
 ## pnpm and Node
 
 `package.json` is the one place for both versions.
