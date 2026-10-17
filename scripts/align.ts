@@ -174,8 +174,18 @@ async function alignTo(dir: string, std: string, repo: string, log: string[]): P
  * The pull request lists every version that moved, read from `package.json` before and after, and the
  * majors left for review. It's opened from a branch named `align`, which a later run updates
  * rather than opening a second one.
+ *
+ * The repositories clone and install side by side, but `verify` runs one at a time. markz's
+ * timing tests failed when five ran at once, since they measured a busy machine, not the code.
  */
 type Outcome = { repo: string; lines: string[]; failed?: string };
+
+let turn: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = turn.then(task);
+  turn = run.catch(() => undefined);
+  return run;
+}
 
 async function files(repo: string, std: string): Promise<Outcome> {
   const dir = join(work, repo);
@@ -189,7 +199,8 @@ async function files(repo: string, std: string): Promise<Outcome> {
     await sh(dir, log, "pnpm", "install", "--frozen-lockfile");
     await sh(dir, log, "pnpm", "run", "fix");
 
-    const changed = (await sh(dir, log, "git", "status", "--porcelain")).trim();
+    // trimEnd, since each line opens with a status column that may be a space.
+    const changed = (await sh(dir, log, "git", "status", "--porcelain")).trimEnd();
     if (!changed) return { repo, lines: ["in line"] };
 
     const after = depsOf(readJson<Pkg>(join(dir, "package.json")));
@@ -202,7 +213,7 @@ async function files(repo: string, std: string): Promise<Outcome> {
       .filter((path) => !["package.json", "pnpm-lock.yaml"].includes(path))
       .map((path) => `${path} from ship`);
 
-    await sh(dir, log, "pnpm", "run", "verify");
+    await oneAtATime(() => sh(dir, log, "pnpm", "run", "verify"));
 
     const pkg = readJson<Pkg>(join(dir, "package.json"));
     const body = [
