@@ -29,6 +29,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BROWSERS } from "./browsers.ts";
 import { type Kind, fixFiles, fixGitHub } from "./rules.ts";
 import { OWNER, VERSIONS } from "./ship.ts";
 import { writeGitHub } from "./settings.ts";
@@ -165,6 +166,7 @@ function tsconfig(kind: Kind): string {
 function viteConfig(kind: Kind): string {
   const lint = block(read("vite.config.ts"), /^ {2}lint: \{[\s\S]*?^ {2}\},$/m);
   if (kind === "site") {
+    const browsers = `  build: { target: ${JSON.stringify(BROWSERS).replaceAll(",", ", ")} },`;
     return `/** @prose
  * # The build
  *
@@ -177,6 +179,9 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [cloudflare({ assetsOnly: true })],
+
+  // The browsers the standard names, from ship's browser-compat-data.
+${browsers}
 
   // oxfmt's defaults.
   fmt: {},

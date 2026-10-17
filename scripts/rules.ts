@@ -21,6 +21,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path";
 import { OWNER, type Pkg, VERSIONS, here, read, standard, versionsIn } from "./ship.ts";
 import { writeLabels, writeRuleset } from "./settings.ts";
+import { BROWSERS } from "./browsers.ts";
 import type { BranchRule, Finding, Repo } from "./survey.ts";
 
 export type Fix =
@@ -214,6 +215,22 @@ const STRICT = [
 ];
 
 const EDITOR = [".vscode/settings.json", ".vscode/extensions.json"];
+
+/** @prose
+ * # The browsers
+ *
+ * The list comes from [browsers.ts](browsers.ts). A build bundles for browsers when it's a
+ * package whose pack isn't `platform: "node"`, or a site that isn't a prose site, which is an
+ * app. Each target in the config is read, the app's `build.target` or the package's
+ * `pack.target`, and the browsers in it have to be the list, with any Node left out.
+ */
+const TARGET = /\btarget:\s*\[([^\]]*)\]/g;
+const targetsIn = (vite: string): string[] =>
+  [...vite.matchAll(TARGET)]
+    .flatMap((m) => [...(m[1] ?? "").matchAll(/"([^"]+)"/g)])
+    .map((m) => m[1] ?? "")
+    .filter((target) => !target.startsWith("node"));
+
 type Json = Record<string, unknown>;
 const readJson = (file: string): Json => JSON.parse(readFileSync(file, "utf8")) as Json;
 const editor = Object.fromEntries(EDITOR.map((file) => [file, readJson(join(here, file))]));
@@ -645,6 +662,22 @@ export const RULES: Rule[] = [
       if (!/typeAware:\s*true/.test(vite)) drift.push("lint isn't type-aware");
       if (!/typeCheck:\s*true/.test(vite)) drift.push("lint doesn't type-check");
       return drifted(drift);
+    },
+  },
+  {
+    id: "toolchain.browsers",
+    wants: BROWSERS.join(" "),
+    check: ({ files, worker: site }) => {
+      const vite = files["vite.config.ts"] ?? "";
+      const pack = /\bpack:\s*\{/.test(vite) && !/platform:\s*"node"/.test(vite);
+      const app = Boolean(site) && !/publicDir:\s*"\.prose"/.test(vite);
+      if (!pack && !app) return undefined;
+      const have = targetsIn(vite);
+      const where = pack ? "pack.target" : "build.target";
+      if (!have.length) return drifted([`${where} isn't set`]);
+      const value = have.join(" ");
+      const same = [...new Set(have)].sort().join(" ") === [...BROWSERS].sort().join(" ");
+      return { value, drift: same ? [] : [`${where} is ${value}, not ${BROWSERS.join(" ")}`] };
     },
   },
   {
