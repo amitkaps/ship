@@ -22,9 +22,9 @@ The toolchain, scripts, branch rules, agents' instructions and release files are
 
 ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite hands `.prose` to Cloudflare's plugin, and `cf deploy --prebuilt` uploads it. base is [the app](standard.md#an-app), SvelteKit with `adapter-cloudflare`, kept for a site that needs code on the server. It stays on wrangler until cf can deploy what the adapter writes. Every Worker builds and deploys `main` with the same settings.
 
-## Next, in order
+## Deferred
 
-1. Decide how the shared scripts and workflows reach the repositories without being copied. Copying, with a rule that checks each copy, works until then. The options include an npm package, a GitHub reusable workflow, and running them from a checkout of this repository.
+- **Shared scripts without copies.** `pr.ts`, `gone.ts`, the release workflow and CI's Label step are copied into each repository, with a rule checking each copy. An npm package, a reusable workflow, or running them from a checkout of this repository would remove the copies. It's deferred, since copying works: `pnpm align` carried a new `pr.ts` to five repositories in one run, and the rules catch a copy that drifts.
 
 ## Later
 
@@ -34,10 +34,4 @@ ship, markz, prose and sitez are [prose sites](standard.md#a-prose-site): Vite h
 
 ## Open questions
 
-- **Pages that aren't the repository.** ship's dashboard is now a doc with empty sections that a script fills after `prose build`, so it has prose's bar and styles. markz's quality page still sits outside prose's frame with no bar. It could become a doc the same way, or prose could take a page for a section, so the trick isn't needed.
-
-- **A site's docs.** Should they be checked for the same sections, or only for the files?
-
-- **A deploy by hand picks no account.** The login sees two Cloudflare accounts, so `pnpm ship` on a laptop stops and asks for `CLOUDFLARE_ACCOUNT_ID`. Workers Builds isn't affected, and `pnpm align` picks the account by name. The account could go in `cloudflare.config.ts`, or a deploy by hand could stay rare enough to set the variable.
-
-- **The dashboard is only as fresh as ship's last deploy.** It's built when ship deploys, so a change merged in another repository doesn't show until ship merges something. After the AGENTS.md change, it showed four repositories as drifting that had already moved. A daily rebuild, an Actions cron calling a deploy hook, would keep it within a day.
+- **Keeping the docs fresh.** The docs are checked for their files, not their sections, and that stays. What goes stale is what they say, like `development.md` describing a setting the standard has moved past, and a check can't tell. One cheap signal: the dashboard could show when each doc last changed beside when the code did, so a doc untouched through many changes stands out, without failing anything.
