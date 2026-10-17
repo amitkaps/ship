@@ -33,7 +33,7 @@ pnpm align            # this repository first, then every other one
 pnpm align markz      # one repository, against this one as it is
 ```
 
-align moves this repository's versions to the newest releases within their majors, then brings every other repository in line with it. Each repository gets a pull request titled "Align with ship", opened only when its `verify` passes, with auto-merge on, so CI merges it. A repository already in line gets none. Its GitHub settings, and its Worker's when `cf` is logged in, are written directly.
+align moves this repository's versions to the newest releases within their majors, then brings every other repository in line with it. Each repository gets a pull request titled "Align with ship", opened only when its `verify` passes, with auto-merge on, so CI merges it. A repository already in line gets none. Its GitHub settings, and its Worker's when `cf` is logged in, are written directly. Then align waits for the pull requests to merge, and rebuilds this repository's site, so the dashboard shows the result. The rebuild needs `cf` logged in.
 
 The output has a line per repository:
 

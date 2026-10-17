@@ -12,7 +12,8 @@
  * auto-merge on, so CI merges it. One that fails leaves its clone and log for a look.
  *
  * Running it twice changes nothing the second time, and a repository already in line gets no
- * pull request.
+ * pull request. A run ends by waiting for its pull requests to merge, then rebuilding ship's site,
+ * so the dashboard shows what it did.
  */
 import { execFile } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -23,7 +24,7 @@ import { promisify } from "node:util";
 import { fixFiles, fixGitHub } from "./rules.ts";
 import { OWNER, TOOLS, catalog } from "./ship.ts";
 import { HELD, REPOS, worker } from "./survey.ts";
-import { cloudflareLogin, githubLogin, writeGitHub, writeWorker } from "./settings.ts";
+import { cloudflareLogin, githubLogin, rebuild, writeGitHub, writeWorker } from "./settings.ts";
 
 const here = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SELF = "ship";
@@ -178,7 +179,7 @@ async function alignTo(dir: string, std: string, repo: string, log: string[]): P
  * The repositories clone and install side by side, but `verify` runs one at a time. markz's
  * timing tests failed when five ran at once, since they measured a busy machine, not the code.
  */
-type Outcome = { repo: string; lines: string[]; failed?: string };
+type Outcome = { repo: string; lines: string[]; failed?: string; pr?: string };
 
 let turn: Promise<unknown> = Promise.resolve();
 function oneAtATime<T>(task: () => Promise<T>): Promise<T> {
@@ -251,7 +252,7 @@ async function files(repo: string, std: string): Promise<Outcome> {
     }
     await sh(dir, log, "gh", "pr", "merge", "align", "--auto", "--squash");
     lines.push(...moved, ...other, ...majors.map((m) => `left for review: ${m}`), url.trim());
-    return { repo, lines };
+    return { repo, lines, pr: url.trim() };
   } catch (error) {
     writeFileSync(logFile, log.join("\n"));
     const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
@@ -303,5 +304,52 @@ for (const outcome of outcomes) {
   console.log(outcome.failed ? `✗ ${outcome.repo}` : `✓ ${outcome.repo}`);
   for (const line of lines) console.log(`    ${line}`);
   if (outcome.failed) console.log(`    failed: ${outcome.failed}`);
+}
+
+/** @prose
+ * # The website
+ *
+ * ship's dashboard shows each repository's `main` as of its last build, so a run ends by
+ * rebuilding it. align waits for its pull requests to merge first, since a build while they're
+ * open would show the versions they replace.
+ *
+ * It asks GitHub every ten seconds, as `pnpm pr --wait` does. A check counts by its latest run,
+ * since adding a label starts a new run that cancels the old one. A pull request that fails or
+ * closes is reported and not waited for. The rebuild runs once any of them merged, and needs `cf`
+ * logged in.
+ */
+type Check = { name?: string; conclusion?: string; startedAt?: string };
+const FAILED = ["FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"];
+
+async function merge(url: string): Promise<string | undefined> {
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    const { stdout } = await run("gh", ["pr", "view", url, "--json", "state,statusCheckRollup"]);
+    const pr = JSON.parse(stdout) as { state: string; statusCheckRollup: Check[] };
+    if (pr.state === "MERGED") return undefined;
+    if (pr.state === "CLOSED") return `${url} was closed without merging`;
+    const latest = new Map<string, Check>();
+    for (const check of pr.statusCheckRollup) {
+      const seen = latest.get(check.name ?? "");
+      if ((check.startedAt ?? "") >= (seen?.startedAt ?? "")) latest.set(check.name ?? "", check);
+    }
+    const bad = [...latest.values()].find((check) => FAILED.includes(check.conclusion ?? ""));
+    if (bad) return `${bad.name ?? "a check"} failed on ${url}`;
+  }
+}
+
+const opened = outcomes.flatMap((outcome) => (outcome.pr ? [outcome] : []));
+if (opened.length) {
+  console.log(`Waiting for ${opened.length} pull request${opened.length > 1 ? "s" : ""} to merge.`);
+  const merged = await Promise.all(
+    opened.map(async ({ repo, pr = "" }) => ({ repo, problem: await merge(pr) })),
+  );
+  for (const { repo, problem } of merged) {
+    failed ||= Boolean(problem);
+    console.log(problem ? `✗ ${repo}: ${problem}` : `✓ ${repo} merged`);
+  }
+  if (merged.some(({ problem }) => !problem)) {
+    console.log(cloudflare ? `not rebuilt: ${SELF}'s site, since ${cloudflare}` : rebuild(SELF));
+  }
 }
 process.exitCode = failed ? 1 : 0;

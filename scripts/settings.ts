@@ -252,6 +252,24 @@ export function writeWorker(name: string): string[] {
 }
 
 /** @prose
+ * # Rebuilding a site
+ *
+ * Starts a Worker's build from `main` through its trigger, the way a push to `main` does. align
+ * uses it for ship's site, whose dashboard reads the other repositories when it's built.
+ */
+export function rebuild(name: string): string {
+  const found = tag(name);
+  if (!found) return `not rebuilt: no Worker named ${name} on Cloudflare`;
+  const triggers = cf("builds", "triggers", "list", "--external-script-id", found) as {
+    trigger_uuid: string;
+  }[];
+  const trigger = triggers[0]?.trigger_uuid;
+  if (!trigger) return `not rebuilt: ${name} isn't connected to its repository yet`;
+  cf("builds", "create", trigger, "--branch", "main");
+  return `rebuilding ${name} from main`;
+}
+
+/** @prose
  * # Access
  *
  * An internal site is private because an Access application covers its domain, and Access
